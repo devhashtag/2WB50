@@ -18,41 +18,28 @@ class Probabilities:
     def click(self, a):
         return comb(self.n, a) * (0.2**a) * (0.8)**(self.n-a)
 
-    def scan_next(self):
-        return 99/100
-
-    def scan_next_after_click(self):
-        return 7/10
-
 
 # %% Initiate given values
 n = 10
 T = 5
+alpha = 7/10
+beta = 99/100
 probs = Probabilities(n, T)
 
 # %% Calculate expected revenue
-def expectedR(pi, a, beta, values, probA, alpha):
-    sumR = 0
-    for t in range(0,T):
-        times = 1
-        for s in range(0, t):
-            times = times * (probA[pi[s]] * alpha + (1-probA[pi[s]]*beta))
-            print(times)
-        sumR += times*probA[pi[t]]*values[pi[t]]
-    
-    return sumR
+
+
+def expectedR(pi, beta, alpha):
+    return sum(np.prod([probs.click(pi[s]) * alpha + (1-probs.click(pi[s])) * beta for s in range(0, t)])
+               * probs.click(pi[t])*probs.revenue(pi[t]) for t in range(0, T))
 
 
 # %% Policy 1
 pi = [i for i in range(1, T+1)]
-probPerA = [probs.click(i) for i in range(1,n)]
-revPerA = [probs.revenue(i) for i in range(1,n)]
-test = expectedR(pi, pi, probs.scan_next(), revPerA, probPerA, probs.scan_next_after_click())
+test = expectedR(pi, beta, alpha)
 print(test)
 
 
 # %% Policy 2
-
-# %%
 
 # %%
