@@ -4,8 +4,7 @@ from scipy.special import comb
 import numpy as np
 import matplotlib as plt
 
-# %%
-# Initiate given values
+# %% Create class to display ads
 
 
 class Probabilities:
@@ -26,22 +25,16 @@ class Probabilities:
         return 7/10
 
 
-probs = Probabilities(10, 5)
-
-A = [i for i in range(1, 11)]
-
 # %% Initiate given values
 n = 10
-A = [i for i in range(1, n+1)]
-T = []
-
-print(probs)
+T = 5
+probs = Probabilities(n, T)
 
 # %% Calculate expected revenue
 
 
 # %% Policy 1
-pi = A
+pi = [i for i in range(1,11)]
 
 
 # %% Policy 2
