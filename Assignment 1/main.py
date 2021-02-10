@@ -1,7 +1,8 @@
-# %%
+# %% Import libraries
 from scipy import stats
 from scipy.special import comb
-print('Hello, world!')
+import numpy as np
+import matplotlib as plt
 
 # %%
 # Initiate given values
@@ -25,16 +26,22 @@ class Probabilities:
 probs = Probabilities(10, 5)
 
 A = [i for i in range(1, 11)]
+
+# %% Initiate given values
+n = 10
+A = [i for i in range(1, n+1)]
 T = []
-pA = []
+pA = [comb(n, a) * (0.2**a) * (0.8)**(n-a) for a in A]
+print(pA)
 vA = [a**(1/2) for a in A]
 alphaA = 7/10
 betaA = 99/100
 
-# %%
-# Policy 1
-pi = A
-pi
+# %% Calculate expected revenue
 
-# %%
-# Policy 2
+
+# %% Policy 1
+pi = A
+
+
+# %% Policy 2
