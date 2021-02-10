@@ -4,8 +4,9 @@ from scipy.special import comb
 import numpy as np
 import matplotlib as plt
 
-# %%
-# Initiate given values
+# %% Create class to display ads
+
+
 class Probabilities:
     def __init__(self, n, T):
         self.n = n
@@ -13,29 +14,21 @@ class Probabilities:
 
     def revenue(self, a):
         return a**0.5
-    
+
     def click(self, a):
         return comb(self.n, a) * (0.2**a) * (0.8)**(self.n-a)
-    
+
     def scan_next(self, a):
         return 99/100
 
     def scan_next_after_click(self, a):
         return 7/10
 
-probs = Probabilities(10, 5)
-
-A = [i for i in range(1, 11)]
 
 # %% Initiate given values
 n = 10
-A = [i for i in range(1, n+1)]
-T = []
-pA = [comb(n, a) * (0.2**a) * (0.8)**(n-a) for a in A]
-print(pA)
-vA = [a**(1/2) for a in A]
-alphaA = 7/10
-betaA = 99/100
+T = 5
+probs = Probabilities(n, T)
 
 # %% Calculate expected revenue
 
