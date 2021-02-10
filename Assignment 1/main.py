@@ -30,7 +30,7 @@ probs = Probabilities(n, T)
 # %% Calculate expected revenue
 
 
-def expectedR(pi, beta, alpha):
+def expectedR(pi):
     return sum(np.prod([probs.click(pi[s]) * alpha + (1-probs.click(pi[s])) * beta for s in range(0, t)])
                * probs.click(pi[t]) * probs.revenue(pi[t]) for t in range(0, T))
 
@@ -65,34 +65,33 @@ def getProb(i, j):
     return 0
 
 
-def simMarkovChain(pi, beta, alpha):
-    nrStates = 3*len(pi)+1
-
-    P = [[getProb(i, j) for j in range(nrStates)] for i in range(nrStates)]
-    print(np.matrix(P))
-
+def simMarkovChain(P, nrStates):
     states = []
     states.append(1)
     while states[-1] != 0:
-        nextState = random.choices(range(nrStates), weights=p[states[-1]], k=1)
+        nextState = random.choices(range(nrStates), weights=P[states[-1]], k=1)
         states.append(nextState[0])
     return states
 
 
-def simulationR(pi, beta, alpha):
-    # Retrieve state path with markov chain
-    states = simMarkovChain(pi, beta, alpha)
-    print(states)
-    states = [1, 3, 4, 5, 7, 8, 10, 12, 13, 15, -1]
-
+def calcRevenue(states):
     # Calculate revenue from states
     revenue = 0
     for state in states:
-        if (state == -1):
+        if (state == 0):
             return revenue
 
         if (state % 3 == 2):
             revenue += probs.revenue((state+1)/3)
+
+
+def simulationR(pi):
+    # Retrieve state path with markov chain
+    nrStates = 3*len(pi)+1
+    P = [[getProb(i, j) for j in range(nrStates)] for i in range(nrStates)]
+
+    revenue = calcRevenue(simMarkovChain(P, nrStates))
+    return revenue
 
 
 # %% Policy 1
@@ -100,11 +99,12 @@ def simulationR(pi, beta, alpha):
 pi = [i for i in range(1, T+1)]
 
 # The expected revenue calculated using the expectedR function
-expRev = expectedR(pi, beta, alpha)
+expRev = expectedR(pi)
 print(f"Expected revenue: {expRev}")
 
 # The simulated revenue calculated using the simulation function
-simRev = simulationR(pi, beta, alpha)
+simRev = simulationR(pi)
+# np.mean(np.array(simulationR(pi) for i in range(1000)))
 print(f"Simulation revenue: {simRev}")
 
 # %% Policy 2
