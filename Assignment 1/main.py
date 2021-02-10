@@ -11,16 +11,16 @@ class Probabilities:
     def __init__(self, n, T):
         self.n = n
         self.T = T
-    # v
+
     def revenue(self, a):
         return a**0.5
-    # p
+
     def click(self, a):
         return comb(self.n, a) * (0.2**a) * (0.8)**(self.n-a)
-    # alpha
+
     def scan_next(self, a):
         return 99/100
-    # beta
+
     def scan_next_after_click(self, a):
         return 7/10
 
