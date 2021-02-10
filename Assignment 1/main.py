@@ -31,6 +31,15 @@ T = 5
 probs = Probabilities(n, T)
 
 # %% Calculate expected revenue
+def expectedR(pi, a, beta, values, prob):
+    sum = prob[pi[1]]*values[pi[1]]
+
+    for t in range(2,T+1):
+        times = 1
+        for s in range(2, t):
+            times *= prob[pi[s]]*a[pi[s]] + (1-prob[pi[s]]*beta)
+        sum += times*prob[pi[t]]*values[pi[t]]
+    return sum
 
 
 # %% Policy 1
@@ -38,3 +47,5 @@ pi = [i for i in range(1,11)]
 
 
 # %% Policy 2
+
+# %%
