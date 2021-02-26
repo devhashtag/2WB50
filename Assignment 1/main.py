@@ -85,13 +85,17 @@ def calcRevenue(states):
             revenue += probs.revenue((state+1)/3)
 
 
-def simulationR(pi):
+def simulationR(pi, numIter):
     # Retrieve state path with markov chain
     nrStates = 3*len(pi)+1
     P = [[getProb(i, j) for j in range(nrStates)] for i in range(nrStates)]
 
-    revenue = calcRevenue(simMarkovChain(P, nrStates))
-    return revenue
+    revenues = []
+    for i in range(numIter):
+        revenue = calcRevenue(simMarkovChain(P, nrStates))
+        revenues.append(revenue)
+
+    return np.mean(revenues)
 
 
 # %% Policy 1
@@ -103,8 +107,7 @@ expRev = expectedR(pi)
 print(f"Expected revenue: {expRev}")
 
 # The simulated revenue calculated using the simulation function
-simRev = simulationR(pi)
-# np.mean(np.array(simulationR(pi) for i in range(1000)))
+simRev = simulationR(pi, 100000)
 print(f"Simulation revenue: {simRev}")
 
 # %% Policy 2
