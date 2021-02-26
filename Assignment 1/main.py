@@ -98,7 +98,7 @@ def simulationR(pi, numIter):
         revenue = calcRevenue(states, pi)
         revenues.append(revenue)
 
-    hist(revenues, bins=[i/2 for i in range(16)])
+    hist(revenues, bins=[i/2 for i in range(16)], rwidth=.99)
 
     return np.mean(revenues)
 
