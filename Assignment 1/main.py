@@ -1,173 +1,159 @@
-# %% Import libraries
-from scipy import stats
-from scipy.special import comb
-import numpy as np
 import matplotlib as plt
-from matplotlib.pyplot import hist
+import numpy as np
 import random
 import pandas as pd
+from scipy import stats
+from scipy.special import comb
+from matplotlib.pyplot import hist
 
-# %% Create class to display ads
-
-
-class Probabilities:
-    def __init__(self, n, T):
-        self.n = n
-        self.T = T
-
-    def revenue(self, a):
-        return a**0.5
-
-    def click(self, a):
-        return comb(self.n, a) * (0.2**a) * (0.8)**(self.n-a)
-
-
-# %% Initiate given values
-n = 10
-T = 5
+# Model parameters
 alpha = 7/10
 beta = 99/100
-probs = Probabilities(n, T)
+ads = 10
+slots = 5
 
-# %% Calculate expected revenue
+# Calculates the revenue of an add
+def revenue(ad):
+    return ad**0.5
 
+# Calculates the probability that a user clicks this ad
+def clicks(ad):
+    return comb(ads, ad) * (0.2**ad) * (0.8**(ads-ad))
 
-def expectedR(pi):
-    return sum(np.prod([probs.click(pi[s]) * alpha + (1-probs.click(pi[s])) * beta for s in range(0, t)])
-               * probs.click(pi[t]) * probs.revenue(pi[t]) for t in range(0, T))
+# Calculates the expected revenue of a policy
+def expected_revenue(policy):
+    total_revenue = 0
+    for t in range(0, slots):
+        # Probability that the user is on the page after scanning t ads
+        on_page = 1
+        for s in range(0, t):
+            click = clicks(policy[s])
+            on_page *= click * alpha + (1 - click) * beta
+        total_revenue += on_page * clicks(policy[t]) * revenue(policy[t])
+    return total_revenue
 
-
-# %% Simulate a user and calculate revenue
-
-def getProb(i, j, pi):
-    if (i == 0 or i == 14 or i == 15):
-        if (j == 0):
-            return 1
-        else:
-            return 0
-
-    if (i % 3 == 1):
-        if (j == i+1):
-            return probs.click(pi[(i-1)//3])
-        elif (j == i+2):
-            return 1 - probs.click(pi[(i-1)//3])
-
-    if (i % 3 == 2):
-        if (j == i+2):
-            return alpha
-        elif (j == 0):
-            return 1 - alpha
-
-    if (i % 3 == 0):
-        if (j == i+1):
-            return beta
-        elif (j == 0):
-            return 1 - beta
-
-    return 0
-
-
-def simMarkovChain(P, nrStates):
-    states = []
-    states.append(1)
-    while states[-1] != 0:
-        nextState = random.choices(range(nrStates), weights=P[states[-1]], k=1)
-        states.append(nextState[0])
-    return states
-
-
-def calcRevenue(states, pi):
-    # Calculate revenue from states
-    revenue = 0
-    for state in states:
-        if (state == 0):
-            return revenue
-
-        if (state % 3 == 2):
-            revenue += probs.revenue(pi[(state-2)//3])
-
-
-def simulationR(pi, numIter):
-    # Retrieve state path with markov chain
-    nrStates = 3*len(pi)+1
-    P = [[getProb(i, j, pi) for j in range(nrStates)] for i in range(nrStates)]
+def simulated_revenue(policy, iterations = 10000, return_revenues=False):
+    matrix, start_state, stop_state = construct_chain(policy)
 
     revenues = []
-    for i in range(numIter):
-        states = simMarkovChain(P, nrStates)
-        revenue = calcRevenue(states, pi)
+    for i in range(iterations):
+        states = simulate_chain(matrix ,start_state, stop_state)
+        revenue = calculate_revenue(states)
         revenues.append(revenue)
+
+    return revenues if return_revenues else np.mean(revenues)
+
+def simulate_chain(matrix, start, stop):
+    states = [start]
+    choices = range(len(matrix))
+    while states[-1] != stop:
+        current_state = states[-1]
+        next_state = random.choices(choices, weights=matrix[current_state]).pop()
+        states.append(next_state)
+    return states
+
+# Constructs a markov chain given a policy.
+# Returns a 3-tuple containing the probability matrix, starting state and end state.
+def construct_chain(policy):
+    # There are three states for each ad/slot, and one exit-state
+    n_states = 3 * slots + 1
+
+    # 0 is exit state
+    # state 1 <= n <= slots corresponds to ad n
+    # state slots < n <= 2 * slots corresponds to ad n that has been clicked
+    # state 2*slots < n <= 3*slots corresponds to ad n that has not been clicked
+
+    matrix = np.zeros((n_states, n_states))
+    matrix = []
+    for i in range(n_states):
+        matrix.append([0] * n_states)
+
+    for i in range(slots):
+        ad = policy[i]
+        state_clicked = ad + slots
+        state_skipped = ad + 2 * slots
+
+        matrix[ad][state_clicked] = clicks(ad)
+        matrix[ad][state_skipped] = 1 - clicks(ad)
+
+        if i < slots - 1:
+            next_ad = policy[i + 1]
+            matrix[state_clicked][next_ad] = alpha
+            matrix[state_clicked][0] = 1 - alpha
+            matrix[state_skipped][next_ad] = beta
+            matrix[state_skipped][0] = 1 - beta
+        else:
+            matrix[state_clicked][0] = 1
+            matrix[state_skipped][0] = 1
+            
+    return (matrix, policy[0], 0)
+
+# calculates the revenue for a single simulation
+def calculate_revenue(states):
+    # print(f'States: {states}')
+    total_revenue = 0
+    for state in states:
+        if slots < state <= 2 * slots:
+            ad = state - slots
+            total_revenue += revenue(ad)
+    return total_revenue
+
+def policy_1():
+    return [i + 1 for i in range(slots)]
+
+def policy_2():
+    b = [i + 1 for i in range(ads)]
+    b.sort(reverse=True, key=sort_value)
+    r = np.full((ads, slots), -np.inf)
+
+    for t in range(slots):
+        fill(r, b, 0, t)
+
+    policy = []
+    for t in range(slots):
+        max_ad = 0
+        max_rev = 0
+        for j in range(ads):
+            if (r[j][t] > max_rev and j+1 not in policy):
+                max_ad = j+1
+                max_rev = r[j][t]
+        policy.append(max_ad)
+    return policy
+
+def sort_value(ad):
+    numerator = clicks(ad) * revenue(ad) 
+    denominator = (1 - clicks(ad) * alpha - (1-clicks(ad)) * beta)
+    return numerator / denominator
+
+def fill(r, b, j, t):
+    if ads - j < slots - t:
+        return -np.inf
+    ad = b[j]
+    if r[ad-1, t] != -np.inf:
+        return r[ad-1, t]
+    if t != slots - 1:
+        a = revenue(ad) * clicks(ad) + (clicks(ad) * alpha + (1 - clicks(j)) * beta) * fill(r, b, j+1, t+1)
+        b = fill(r, b, j+1, t)
+        r[ad-1, t] = max(a,b)
+    else:
+        r[ad-1, t] = clicks(ad) * revenue(ad)
+    return r[ad-1, t]
+
+def run(policy, iterations=100000):
+    expected = expected_revenue(policy)
+    simulated = simulated_revenue(policy, iterations)
+
+    print(f'Expected revenue: {expected}')
+    print(f'Simulated revenue: {simulated}')
+
+def run_with_plot(policy, iterations=100000):
+    expected = expected_revenue(policy)
+    revenues = simulated_revenue(policy, iterations, True)
+    simulated = np.mean(revenues)
+
+    print(f'Expected revenue: {expected}')
+    print(f'Simulated revenue: {simulated}')
 
     hist(revenues, bins=[i/2 for i in range(16)], rwidth=.99)
 
-    return np.mean(revenues)
-
-
-# %% Policy 1
-# The sequence of ads encountered
-pi = [i for i in range(1, T+1)]
-
-# The expected revenue calculated using the expectedR function
-expRev = expectedR(pi)
-print(f"Expected revenue with policy 1 for {pi}: {expRev}")
-
-# The simulated revenue calculated using the simulation function
-simRev = simulationR(pi, 100000)
-print(f"Simulation revenue with policy 1 for {pi}: {simRev}")
-
-# %% Policy 2
-# Sort ads in nondecreasing order
-
-
-def sortfunction(e):
-    numerator = probs.click(e) * probs.revenue(e)
-    denominator = 1 - probs.click(e) * alpha - (1-probs.click(e)) * beta
-    return numerator/denominator
-
-
-B = [i for i in range(1, n+1)]
-B.sort(reverse=True, key=sortfunction)
-
-# %% Recursively calculate r
-r = [[-np.inf for i in range(T)] for j in range(n)]
-
-
-def calcR(r, bIndex, t):
-    if (n - bIndex >= T - t):
-        bj = B[bIndex]
-        if (t != T-1):
-            option1 = probs.revenue(bj) * probs.click(bj) + \
-                (probs.click(bj) * alpha + (1 - probs.click(bIndex))
-                 * beta) * calcR(r, bIndex+1, t+1)
-            option2 = calcR(r, bIndex+1, t)
-            r[bj-1][t] = max(option1, option2)
-        else:
-            r[bj-1][t] = probs.click(bj) * probs.revenue(bj)
-        return r[bj-1][t]
-    return -np.inf
-
-
-for t in range(T):
-    calcR(r, 0, t)
-
-# %% Calculate pi
-pi = []
-
-for t in range(T):
-    maxAd = 0
-    maxR = -np.inf
-    for j in range(n):
-        if (r[j][t] > maxR and j+1 not in pi):
-            maxAd = j+1
-            maxR = r[j][t]
-    pi.append(maxAd)
-
-# %% Calculate revenue
-# The expected revenue calculated using the expectedR function
-expRev = expectedR(pi)
-print(f"Expected revenue with policy 2 for {pi}: {expRev}")
-
-# The simulated revenue calculated using the simulation function
-simRev = simulationR(pi, 100000)
-print(f"Simulation revenue with policy 2 for {pi}: {simRev}")
-# %%
+run_with_plot(policy_2())
