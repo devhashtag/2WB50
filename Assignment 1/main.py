@@ -137,6 +137,7 @@ def fill(r, b, j, t):
     return r[ad-1, t]
 
 def run(policy, iterations=100000):
+    print(f'Policy: {policy}')
     expected = expected_revenue(policy)
     simulated = simulated_revenue(policy, iterations)
 
@@ -144,6 +145,7 @@ def run(policy, iterations=100000):
     print(f'Simulated revenue: {simulated}')
 
 def run_with_plot(policy, iterations=100000):
+    print(f'Policy: {policy}')
     expected = expected_revenue(policy)
     revenues = simulated_revenue(policy, iterations, True)
     simulated = np.mean(revenues)
