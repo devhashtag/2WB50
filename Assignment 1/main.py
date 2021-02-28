@@ -64,9 +64,6 @@ def construct_chain(policy):
     # state 2*slots < n <= 3*slots corresponds to ad n that has not been clicked
 
     matrix = np.zeros((n_states, n_states))
-    matrix = []
-    for i in range(n_states):
-        matrix.append([0] * n_states)
 
     for i in range(slots):
         ad = policy[i]
