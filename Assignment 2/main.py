@@ -42,3 +42,26 @@ def handleCustomer(customer, station):
         queues[nextQueue].put(customer)
 
 # %%
+def discipline1(stationQ, stationi):
+    while not stationQ.empty():
+        cust = stationQ.get()
+        handleCustomer(cust, stationi) #handle custumer
+        stationQ.task_done()
+    #All custumer for station i has been served.
+# %%
+def discipline2(stationQ, stationi):
+    i = 0
+    while (not stationQ.empty()) and (k[stationi] < i):
+        cust = stationQ.get()
+        handleCustomer(cust, stationi)
+        stationQ.task_done()
+        i += 1
+    #All custumer or up to k custumers for station i has been served.
+# %%
+def discipline3(stationQ, stationi):
+    ki = stationQ.qsize()
+    for i in range(ki):
+        cust = stationQ.get()
+        handleCustomer(cust, stationi)
+        stationQ.task_done()
+    #No new custumers are served in stationQ
