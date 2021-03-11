@@ -1,11 +1,14 @@
 # %% imports
 import pandas as pd
-from queue import Queue
 import random
 import math
 import statistics
 import random
+import numpy as np
 from uuid import uuid4
+from numpy import array, dot
+from numpy.linalg import LinAlgError
+from queue import Queue
 
 inputText = '''0.02	0.03	0.02	0.03	0.07	0.01
 1.	0.4	0.5	0.8	0.9	0.8
@@ -61,8 +64,42 @@ duration = 100
 # calculate pi0
 for line in p:
     line.insert(0, 1-sum(line))
-
 print(pd.DataFrame(p))
+
+# %%
+'''
+Calculates the total (external + internal) arrival rate of customers for each queue
+'''
+def calc_arrival_rate():
+    # set up the equations as matrices
+    p_ = array(p)
+    coefficients = np.delete(p_, 0, 1).T - np.identity(N)
+    solutions = -1 * array(lambdas).reshape((N, 1))
+    try:
+        gammas = np.linalg.inv(coefficients) @ solutions
+        return gammas.flatten()
+    except LinAlgError:
+        raise Exception('Infinite amount of solutions possible for the theorical total arrival rates')
+
+'''
+Calculates the total network utilisation.
+The system is stable if this value is strictly less than 1,
+otherwise all performance measures will be infinite
+'''
+def calc_network_utilisation():
+    gammas = calc_arrival_rate()
+    service_times = expectedB
+    return dot(gammas, service_times)
+
+'''
+Calculates the expected cycle time of the rover.
+More precise: it is the mean time between two consecutive arrivals
+of the rover at station i.
+'''
+def calc_expected_cycle_time():
+    r = sum(expectedR)
+    rho = calc_network_utilisation()
+    return r / (1 - rho)
 
 # %%
 # Calculates the time between the last external arrival and the next external arrival
