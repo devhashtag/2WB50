@@ -70,8 +70,28 @@ class Simulation:
         return self.stations[rover_station]
 
     def showResults(self):
-        print("end")
         self.printQueues()
+        print('\n')
+        mean_waiting_times = [station.results.getMeanWaitingTime() for station in self.stations]
+        var_waiting_times = [station.results.getVarianceWaitingTime() for station in self.stations]
+        mean_queue_lengths = [station.results.getMeanQueueLength() for station in self.stations]
+        var_queue_lengths = [station.results.getVarianceQueueLength() for station in self.stations]
+        mean_sojourn_times = [station.results.getMeanSojournTime() for station in self.stations]
+        var_sojourn_times = [station.results.getVarianceSojournTime() for station in self.stations]
+        mean_cycle_times = [station.results.getMeanCycleTime() for station in self.stations]
+        var_cycle_times = [station.results.getVarianceCycleTime() for station in self.stations]
+        data = {
+            'E[W]': mean_waiting_times, 
+            'V[W]': var_waiting_times, 
+            'E[Q]': mean_queue_lengths, 
+            'V[Q]': var_queue_lengths,
+            'E[T]': mean_sojourn_times,
+            'V[T]': var_sojourn_times,
+            'E[C]': mean_cycle_times,
+            'V[C]': var_cycle_times
+            }
+        df = pd.DataFrame(data)
+        print(df)
 
     def printQueues(self):
         [station.printQueue(self.time) for station in self.stations]
@@ -89,6 +109,9 @@ class Simulation:
             i += 1
 
     def handleCustomer(self, customer):
+        # save waiting time
+        self.stations[self.rover_station].results.registerWaitingTime(customer.getWaitingTime(self.time), self.time)
+
         # select queue to move to
         nextQueue = random.choices(range(N+1), weights=p[self.rover_station])
         nextStation = nextQueue[0]-1
@@ -97,15 +120,22 @@ class Simulation:
         if (nextStation != -1):
             self.stations[nextStation].addCustomer(customer, self.time)
         else:
-            self.stations[self.rover_station].handleExit(customer)
+            self.stations[self.rover_station].handleExit(customer, self.time)
 
     def nextStation(self):
         self.time += expectedR[self.rover_station]
+        self.stations[self.rover_station].results.registerCycleTime(self.time)
         self.rover_station = (self.rover_station + 1) % N
         self.checkTime()
 
     def checkTime(self):
+        # save queue length
+        [station.saveQueueLength(self.time) for station in self.stations]
+
+        # check for arrivals
         [station.checkArrival(self.time) for station in self.stations]
+
+        # stop if duration has been reached
         if self.time >= self.duration:
             raise OutOfTimeError()
 
@@ -133,9 +163,9 @@ class Station:
 
     def checkArrival(self, time):
         if (self.next_arrival <= time):
-            self.calcNextArrival()
             customer = Customer(self.next_arrival)
             self.queue.put(customer)
+            self.calcNextArrival()
 
     def calcNextArrival(self):
         rate = lambdas[self.position]
@@ -147,9 +177,11 @@ class Station:
         customer.setWaitingTime(time)
         self.queue.put(customer)
 
-    def handleExit(self, customer):
-        x = 1
-        # set results
+    def handleExit(self, customer, time):
+        self.results.registerSojournTime(customer.getTotalTime(time), time)
+
+    def saveQueueLength(self, time):
+        self.results.registerQueueLength(self.queue.qsize(), time)
 
     def printQueue(self, time):
         print(f"Queue {self.position+1}: ", end='')
@@ -158,23 +190,32 @@ class Station:
 # %% define station results class
 class StationResults:
 
+    STEADY_STATE_BOUNDARY = 1000
+
     def __init__(self):
         self.waiting_times = []
         self.queue_lengths = []
         self.sojourn_times = []
         self.cycle_times = []
 
-    def registerWaitingTime(self, waiting_time):
-        self.waiting_times.append(wainting_time)
+    def registerWaitingTime(self, waiting_time, time):
+        if time > self.STEADY_STATE_BOUNDARY:
+            self.waiting_times.append(waiting_time)
 
-    def registerQueueLength(self, queue_length):
-        self.queue_lengths.append(queue_length)
+    def registerQueueLength(self, queue_length, time):
+        if time > self.STEADY_STATE_BOUNDARY:
+            self.queue_lengths.append(queue_length)
 
-    def registerSojournTime(self, sojourn_time):
-        self.sojourn_times.append(sojourn_time)
+    def registerSojournTime(self, sojourn_time, time):
+        if time > self.STEADY_STATE_BOUNDARY:
+            self.sojourn_times.append(sojourn_time)
 
-    def registerCycleTime(self, cycle_time):
-        self.cycle_time.append(cycle_time)
+    def registerCycleTime(self, time):
+        if time > self.STEADY_STATE_BOUNDARY:
+            if not (self.cycle_times == []):
+                self.cycle_times.append(time-self.cycle_times[-1])
+            else:
+                self.cycle_times.append(time)
 
     def getMeanWaitingTime(self):
         return np.mean(self.waiting_times)
@@ -200,24 +241,25 @@ class StationResults:
     def getVarianceCycleTime(self):
         return np.var(self.cycle_times)
 
+
 # %% define customer class
 class Customer:
     next_id = 1
 
     def __init__(self, time):
-        self.arrivalTime = time
-        self.waitingTime = time
+        self.arrival_time = time
+        self.waiting_time = time
         self.id = Customer.next_id
         Customer.next_id += 1
 
     def getTotalTime(self, time):
-        return time - self.arrivalTime
+        return time - self.arrival_time
 
     def setWaitingTime(self, time):
-        self.waitingTime = time
+        self.waiting_time = time
 
     def getWaitingTime(self, time):
-        return round(time - self.waitingTime, 1)
+        return round(time - self.waiting_time, 1)
 
     def __str__(self):
         return f'Id: {self.id}'
@@ -273,6 +315,6 @@ def discipline3(stationQ, i, initialQSize, k):
     return not stationQ.empty() and i < initialQSize
 
 
-simulation = Simulation(n_stations=N, discipline=discipline2, duration=10000)
+simulation = Simulation(n_stations=N, discipline=discipline2, duration=100000)
 simulation.run()
 # %%
