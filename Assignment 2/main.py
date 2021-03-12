@@ -78,6 +78,7 @@ class Simulation:
         var_queue_lengths = [station.results.getVarianceQueueLength() for station in self.stations]
         mean_sojourn_times = [station.results.getMeanSojournTime() for station in self.stations]
         var_sojourn_times = [station.results.getVarianceSojournTime() for station in self.stations]
+        [station.results.calculateCycleTimes() for station in self.stations]
         mean_cycle_times = [station.results.getMeanCycleTime() for station in self.stations]
         var_cycle_times = [station.results.getVarianceCycleTime() for station in self.stations]
         data = {
@@ -196,6 +197,7 @@ class StationResults:
         self.waiting_times = []
         self.queue_lengths = []
         self.sojourn_times = []
+        self.cycle_points = []
         self.cycle_times = []
 
     def registerWaitingTime(self, waiting_time, time):
@@ -212,10 +214,10 @@ class StationResults:
 
     def registerCycleTime(self, time):
         if time > self.STEADY_STATE_BOUNDARY:
-            if not (self.cycle_times == []):
-                self.cycle_times.append(time-self.cycle_times[-1])
-            else:
-                self.cycle_times.append(time)
+            self.cycle_points.append(time)
+
+    def calculateCycleTimes(self):
+        self.cycle_times = np.diff(self.cycle_points)
 
     def getMeanWaitingTime(self):
         return np.mean(self.waiting_times)
@@ -315,6 +317,6 @@ def discipline3(stationQ, i, initialQSize, k):
     return not stationQ.empty() and i < initialQSize
 
 
-simulation = Simulation(n_stations=N, discipline=discipline2, duration=100000)
+simulation = Simulation(n_stations=N, discipline=discipline3, duration=100000)
 simulation.run()
 # %%
