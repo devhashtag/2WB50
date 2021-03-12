@@ -226,30 +226,3 @@ def simulation(discipline):
         
 # %%
 simulation(discipline3)
-# %%
-
-# %%
-
-# %%
-
-# %%
-
-# %%
-
-# %%
-
-# %%
-
-# %%
-
-# %%
-
-# %%
-
-# %%
-
-# %%
-
-# %%
-
-# %%
