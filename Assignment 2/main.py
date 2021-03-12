@@ -62,12 +62,20 @@ expectedR = [float(x) for x in text_lines.pop().split()]
 k = [float(x) for x in text_lines.pop().split()]
 p = [[float(x) for x in text_lines.pop().split()] for y in range(N)]
 
-duration = 100
+duration = 1000
 
 # calculate pi0
 for line in p:
     line.insert(0, 1-sum(line))
 print(pd.DataFrame(p))
+
+service_rvs = []
+
+for i in range(N):
+    service_rvs.append(stats.expon(scale=expectedB[i]))
+
+def sample_service_time(station_index):
+    return service_rvs[station_index].rvs(1)[0]
 
 # %%
 '''
@@ -134,7 +142,7 @@ def discipline1(queues, rover_station, next_arrivals, time):
         # print_q(stationQ)
         cust = stationQ.get()
         handleCustomer(queues, cust, rover_station, time) #handle custumer
-        time += expectedB[rover_station]
+        time += sample_service_time(rover_station)
         stationQ.task_done()
         # print_q(stationQ)
         check_time(queues, next_arrivals, time)
@@ -146,10 +154,10 @@ def discipline1(queues, rover_station, next_arrivals, time):
 def discipline2(queues, rover_station, next_arrivals, time):
     stationQ = queues[rover_station]
     i = 0
-    while (not stationQ.empty()) and (k[rover_station] < i):
+    while (not stationQ.empty()) and (i < k[rover_station]):
         cust = stationQ.get()
         handleCustomer(queues, cust, rover_station, time)
-        time += expectedB[rover_station]
+        time += sample_service_time(rover_station)
         stationQ.task_done()
         i += 1
         check_time(queues, next_arrivals, time)
@@ -164,7 +172,7 @@ def discipline3(queues, rover_station, next_arrivals, time):
     for i in range(ki):
         cust = stationQ.get()
         handleCustomer(queues, cust, rover_station, time)
-        time += expectedB[rover_station]
+        time += sample_service_time(rover_station)
         stationQ.task_done()
         check_time(queues, next_arrivals, time)
 
@@ -183,7 +191,6 @@ def check_time(queues, next_arrivals, current_time):
     check_arrivals(queues, next_arrivals, current_time)
     if current_time >= duration:
         raise OutOfTimeError()
-
 
 def check_arrivals(queues, next_arrivals, time):
     for i in range(N):
@@ -225,4 +232,4 @@ def simulation(discipline):
         # give output
         
 # %%
-simulation(discipline3)
+simulation(discipline2)
