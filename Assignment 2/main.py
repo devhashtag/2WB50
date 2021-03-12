@@ -79,7 +79,7 @@ def calc_arrival_rate():
         gammas = np.linalg.inv(coefficients) @ solutions
         return gammas.flatten()
     except LinAlgError:
-        raise Exception('Infinite amount of solutions possible for the theorical total arrival rates')
+        raise Exception('Infinite amount of solutions possible for the theorical total arrival rates. This usually only happens if there is a station with a self-loop of probability 1.')
 
 '''
 Calculates the total network utilisation.
