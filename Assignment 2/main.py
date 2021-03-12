@@ -145,7 +145,7 @@ def discipline2(queues, rover_station, next_arrivals, time):
     i = 0
     while (not stationQ.empty()) and (k[rover_station] < i):
         cust = stationQ.get()
-        handleCustomer(cust, rover_station)
+        handleCustomer(queues, cust, rover_station, time)
         time += expectedB[rover_station]
         stationQ.task_done()
         i += 1
@@ -160,7 +160,7 @@ def discipline3(queues, rover_station, next_arrivals, time):
     ki = stationQ.qsize()
     for i in range(ki):
         cust = stationQ.get()
-        queues = handleCustomer(cust, rover_station)
+        handleCustomer(queues, cust, rover_station, time)
         time += expectedB[rover_station]
         stationQ.task_done()
         check_time(queues, next_arrivals, time)
@@ -175,15 +175,6 @@ def nextStation(rover_position, time):
     return rover_position, time
 
 # %%
-#Calculates the network utilization
-def networkUtilisation():
-    for i in range(N):
-        gamma[i] = lambdas[i]
-        sumTemp = 0
-        for j in range(1, N+1):
-            sumTemp += gamma[j] * p[i][j]
-# %%
-
 def check_time(queues, next_arrivals, current_time):
     # print(current_time)
     check_arrivals(queues, next_arrivals, current_time)
@@ -209,9 +200,7 @@ def print_q(index, queue, time):
 def simulation(discipline):
     random.seed(42)
     # initialize queues
-    queues = []
-    for i in range(N):
-        queues.append(Queue())
+    queues = [Queue() for _ in range(N)]
     
     # start time at 0 and rover at station 1
     time = 0.0
@@ -233,6 +222,4 @@ def simulation(discipline):
         # give output
         
 # %%
-simulation(discipline1)
-
-# %%
+simulation(discipline3)
