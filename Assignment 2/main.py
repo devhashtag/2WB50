@@ -46,6 +46,7 @@ service_rvs = []
 for i in range(N):
     service_rvs.append(stats.expon(scale=expectedB[i]))
 
+
 def sample_service_time(station_index):
     return service_rvs[station_index].rvs(1)[0]
 
@@ -55,14 +56,13 @@ class OutOfTimeError(Exception):
     pass
 
 # %% define simulation class
-
-
 class Simulation:
 
-    def __init__(self, n_stations, duration=1000, rover_station=0, seed=42):
+    def __init__(self, n_stations, discipline, duration, rover_station=0, seed=42):
         self.rover_station = rover_station
+        self.discipline = discipline
         self.duration = duration
-        self.stations = [Station() for _ in range(n_stations)]
+        self.stations = [Station(i) for i in range(n_stations)]
         self.time = 0.0
         random.seed(42)
 
@@ -70,45 +70,65 @@ class Simulation:
         return self.stations[rover_station]
 
     def showResults(self):
+        print("end")
+        self.printQueues()
 
-    def run(self):
-        # get first arrival for each station
-        self.next_arrivals = [calc_next_arrival(i) for i in range(N)]
+    def printQueues(self):
+        [station.printQueue(self.time) for station in self.stations]
 
-        try:
-            while True:
-                print(f"Current station: {rover_station+1}")
-                self.time = handleQueue(self.queues, self.rover_station, next_arrivals, time, discipline)
-                self.rover_station, self.time = nextStation(rover_station, time)
-                self.check_time(queues, next_arrivals, time)
-                [print_q(index, queues[index], time)
-                    for index in range(len(queues))]
-        except OutOfTimeError:
-            print("Out of time")
-            pass
-        finally:
-            self.results()
-            pass
+    def handleQueue(self):
+        queue = self.stations[self.rover_station].queue
+        initialQSize = queue.qsize()
+        i = 0
+        while self.discipline(queue, i, initialQSize, k[self.rover_station]):
+            customer = queue.get()
+            self.handleCustomer(customer)
+            self.time += sample_service_time(self.rover_station)
+            queue.task_done()
+            self.checkTime()
+            i += 1
 
-    def handleCustomer(customer):
+    def handleCustomer(self, customer):
         # select queue to move to
         nextQueue = random.choices(range(N+1), weights=p[self.rover_station])
         nextStation = nextQueue[0]-1
 
         # add customer to next queue or let him leave the system
         if (nextStation != -1):
-            self.stations[nextStation].addCustomer(customer)
+            self.stations[nextStation].addCustomer(customer, self.time)
         else:
-            self.stations[self.rover_position].handleExit(customer)
+            self.stations[self.rover_station].handleExit(customer)
 
+    def nextStation(self):
+        self.time += expectedR[self.rover_station]
+        self.rover_station = (self.rover_station + 1) % N
+        self.checkTime()
+
+    def checkTime(self):
+        [station.checkArrival(self.time) for station in self.stations]
+        if self.time >= self.duration:
+            raise OutOfTimeError()
+
+    def run(self):
+        try:
+            while True:
+                self.handleQueue()
+                self.nextStation()
+        except OutOfTimeError:
+            print("Out of time")
+            pass
+        finally:
+            self.showResults()
+            pass
 
 # %% define station class
 class Station:
 
-    def __init_(self, position):
+    def __init__(self, position):
         self.position = position
         self.queue = Queue()
-        self.next_arrival = calc_next_arrival(position)
+        self.next_arrival = 0.0
+        self.calcNextArrival()
         self.results = StationResults()
 
     def checkArrival(self, time):
@@ -116,22 +136,24 @@ class Station:
             self.calcNextArrival()
             customer = Customer(self.next_arrival)
             self.queue.put(customer)
-            print(f'{customer} entered the system')
 
     def calcNextArrival(self):
         rate = lambdas[self.position]
         n = random.random()
         inter_event_time = -math.log(1.0 - n) / rate
-        self.next_arrival = inter_event_time
+        self.next_arrival += inter_event_time
 
     def addCustomer(self, customer, time):
         customer.setWaitingTime(time)
         self.queue.put(customer)
 
     def handleExit(self, customer):
-        print(f'{customer} left the system')
+        x = 1
         # set results
 
+    def printQueue(self, time):
+        print(f"Queue {self.position+1}: ", end='')
+        print([cust for cust in list(self.queue.queue)])
 
 # %% define station results class
 class StationResults:
@@ -178,7 +200,6 @@ class StationResults:
     def getVarianceCycleTime(self):
         return np.var(self.cycle_times)
 
-
 # %% define customer class
 class Customer:
     next_id = 1
@@ -204,11 +225,10 @@ class Customer:
     def __repr__(self):
         return self.__str__()
 
-
-# %%
+# %% Theoretical values
 
 # Calculates the total (external + internal) arrival rate of customers for each queue
-def calc_arrival_rate():
+def calcArrivalRate():
     # set up the equations as matrices
     p_ = array(p)
     coefficients = np.delete(p_, 0, 1).T - np.identity(N)
@@ -224,8 +244,8 @@ def calc_arrival_rate():
 # Calculates the total network utilisation.
 # The system is stable if this value is strictly less than 1,
 # otherwise all performance measures will be infinite
-def calc_network_utilisation():
-    gammas = calc_arrival_rate()
+def calcNetworkUtilisation():
+    gammas = calcArrivalRate()
     service_times = expectedB
     return dot(gammas, service_times)
 
@@ -233,35 +253,12 @@ def calc_network_utilisation():
 # Calculates the expected cycle time of the rover.
 # More precise: it is the mean time between two consecutive arrivals
 # of the rover at station i.
-def calc_expected_cycle_time():
+def calcExpectedCycleTime():
     r = sum(expectedR)
-    rho = calc_network_utilisation()
+    rho = calcNetworkUtilisation()
     return r / (1 - rho)
 
 # %%
-
-
-# Calculates the time between the last external arrival and the next external arrival
-# (https://timeseriesreasoning.com/2019/10/12/poisson-process-simulation/)
-
-
-# %% handle queue
-
-
-def handleQueue(queues, rover_station, next_arrivals, time, discipline):
-    stationQ = queues[rover_station]
-    initialQSize = stationQ.qsize()
-    i = 0
-    while discipline(stationQ, i, initialQSize, k[rover_station]):
-        cust = stationQ.get()
-        handleCustomer(queues, cust, rover_station, time)  # handle custumer
-        time += sample_service_time(rover_station)
-        stationQ.task_done()
-        check_time(queues, next_arrivals, time)
-        i += 1
-
-    # All custumer for station i has been served.
-    return time
 
 
 def discipline1(stationQ, i, initialQSize, k):
@@ -275,32 +272,7 @@ def discipline2(stationQ, i, initialQSize, k):
 def discipline3(stationQ, i, initialQSize, k):
     return not stationQ.empty() and i < initialQSize
 
-# %%
 
-
-def nextStation(rover_position, time):
-    time += expectedR[rover_position]
-    rover_position = (rover_position + 1) % N
-    return rover_position, time
-
-# %%
-
-
-def check_time(queues, next_arrivals, current_time):
-    # print(current_time)
-    check_arrivals(queues, next_arrivals, current_time)
-    if current_time >= duration:
-        raise OutOfTimeError()
-
-
-def print_q(index, queue, time):
-    print(f"Queue {index+1}: ", end='')
-    print([cust.getWaitingTime(time) for cust in list(queue.queue)])
-
-
-def simulation(discipline):
-
-    # %%
-simulation(discipline1)
-
+simulation = Simulation(n_stations=N, discipline=discipline2, duration=10000)
+simulation.run()
 # %%
