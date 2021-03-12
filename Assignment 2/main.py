@@ -5,7 +5,7 @@ import math
 import statistics
 import random
 import numpy as np
-from uuid import uuid4
+from scipy import stats
 from numpy import array, dot
 from numpy.linalg import LinAlgError
 from queue import Queue
@@ -29,9 +29,12 @@ class OutOfTimeError(Exception):
 
 # %% define customer class
 class Customer:    
+    next_id = 1
+
     def __init__(self, time):
         self.arrivalTime = time
-        self.uuid = uuid4()
+        self.id = Customer.next_id
+        Customer.next_id += 1
   
     def getTotalTime(self, time):
         return time - self.arrivalTime
@@ -43,7 +46,7 @@ class Customer:
         return round(time - self.waitingTime, 1)
 
     def __str__(self):
-        return f'Id: {self.uuid}'
+        return f'Id: {self.id}'
 
     def __repr__(self):
         return self.__str__()
@@ -223,3 +226,30 @@ def simulation(discipline):
         
 # %%
 simulation(discipline3)
+# %%
+
+# %%
+
+# %%
+
+# %%
+
+# %%
+
+# %%
+
+# %%
+
+# %%
+
+# %%
+
+# %%
+
+# %%
+
+# %%
+
+# %%
+
+# %%
