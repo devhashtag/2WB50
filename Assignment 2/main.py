@@ -70,8 +70,6 @@ class Simulation:
         return self.stations[rover_station]
 
     def showResults(self):
-        self.printQueues()
-        print('\n')
         mean_waiting_times = [station.results.getMeanWaitingTime() for station in self.stations]
         var_waiting_times = [station.results.getVarianceWaitingTime() for station in self.stations]
         mean_queue_lengths = [station.results.getMeanQueueLength() for station in self.stations]
@@ -280,16 +278,17 @@ class ConfidenceInterval:
 
     def calculate(self):
         # run simulations
-        for _ in range(self.iterations):
+        for i in range(self.iterations):
+            print(f"Run {i}")
             sim = Simulation(self.n_stations, self.discipline, self.duration)
             res = sim.run()
-            [self.mean_waiting_times[i].append(res['E[W]'][i]) for i in range(self.n_stations)]
+            [self.mean_waiting_times[j].append(res['E[W]'][j]) for j in range(self.n_stations)]
         
         # calculate confidence intervals of results
         self.intervals = [stats.t.interval(0.95, len(means)-1, loc=np.mean(means), scale=stats.sem(means)) for means in self.mean_waiting_times]
 
-    def printResults(self):
-        with open("Output.txt", "w") as text_file:
+    def printResults(self, file):
+        with open(file, "w") as text_file:
             print(f"Mean waiting times: \n{self.mean_waiting_times}\n", file=text_file)
             print(f"Intervals: ", file=text_file)
             [print(f"{interval}", file=text_file) for interval in self.intervals]
@@ -358,8 +357,16 @@ print(f'Discipline 3: \n {results_discipline3}\n')
 
 # %% calculate confidence intervals
 
-ci = ConfidenceInterval(n_stations=N, discipline=discipline1, duration=50000, iterations=1000)
-ci.calculate()
-ci.printResults()
+ci1 = ConfidenceInterval(n_stations=N, discipline=discipline1, duration=50000, iterations=50)
+ci1.calculate()
+ci1.printResults("Output_discipline1.txt")
+
+ci2 = ConfidenceInterval(n_stations=N, discipline=discipline2, duration=50000, iterations=50)
+ci2.calculate()
+ci2.printResults("Output_discipline2.txt")
+
+ci3 = ConfidenceInterval(n_stations=N, discipline=discipline3, duration=50000, iterations=50)
+ci3.calculate()
+ci3.printResults("Output_discipline3.txt")
 
 # %%
