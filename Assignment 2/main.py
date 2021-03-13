@@ -92,7 +92,7 @@ class Simulation:
             'V[C]': var_cycle_times
             }
         df = pd.DataFrame(data)
-        print(df)
+        return df
 
     def printQueues(self):
         [station.printQueue(self.time) for station in self.stations]
@@ -149,7 +149,7 @@ class Simulation:
             print("Out of time")
             pass
         finally:
-            self.showResults()
+            return self.showResults()
             pass
 
 # %% define station class
@@ -243,7 +243,6 @@ class StationResults:
     def getVarianceCycleTime(self):
         return np.var(self.cycle_times)
 
-
 # %% define customer class
 class Customer:
     next_id = 1
@@ -268,6 +267,33 @@ class Customer:
 
     def __repr__(self):
         return self.__str__()
+
+# %% define confidence interval class
+class ConfidenceInterval:
+    
+    def __init__(self, n_stations, discipline, duration, iterations):
+        self.n_stations = n_stations
+        self.discipline = discipline
+        self.duration = duration
+        self.iterations = iterations
+        self.mean_waiting_times = [[] for _ in range(n_stations)]
+
+    def calculate(self):
+        # run simulations
+        for _ in range(self.iterations):
+            sim = Simulation(self.n_stations, self.discipline, self.duration)
+            res = sim.run()
+            [self.mean_waiting_times[i].append(res['E[W]'][i]) for i in range(self.n_stations)]
+        
+        # calculate confidence intervals of results
+        self.intervals = [stats.t.interval(0.95, len(means)-1, loc=np.mean(means), scale=stats.sem(means)) for means in self.mean_waiting_times]
+
+    def printResults(self):
+        with open("Output.txt", "w") as text_file:
+            print(f"Mean waiting times: \n{self.mean_waiting_times}\n", file=text_file)
+            print(f"Intervals: ", file=text_file)
+            [print(f"{interval}", file=text_file) for interval in self.intervals]
+        [print(interval) for interval in self.intervals]
 
 # %% Theoretical values
 
@@ -316,7 +342,24 @@ def discipline2(stationQ, i, initialQSize, k):
 def discipline3(stationQ, i, initialQSize, k):
     return not stationQ.empty() and i < initialQSize
 
+# %% run simulations
 
-simulation = Simulation(n_stations=N, discipline=discipline3, duration=100000)
-simulation.run()
+simulation1 = Simulation(n_stations=N, discipline=discipline1, duration=100000)
+simulation2 = Simulation(n_stations=N, discipline=discipline2, duration=100000)
+simulation3 = Simulation(n_stations=N, discipline=discipline3, duration=100000)
+
+results_discipline1 = simulation1.run()
+results_discipline2 = simulation2.run()
+results_discipline3 = simulation3.run()
+
+print(f'Discipline 1: \n {results_discipline1}\n')
+print(f'Discipline 2: \n {results_discipline2}\n')
+print(f'Discipline 3: \n {results_discipline3}\n')
+
+# %% calculate confidence intervals
+
+ci = ConfidenceInterval(n_stations=N, discipline=discipline1, duration=50000, iterations=1000)
+ci.calculate()
+ci.printResults()
+
 # %%
