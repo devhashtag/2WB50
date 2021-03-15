@@ -10,35 +10,18 @@ from numpy import array, dot
 from numpy.linalg import LinAlgError
 from queue import Queue
 
-inputText = '''0.02	0.03	0.02	0.03	0.07	0.01
-1.	0.4	0.5	0.8	0.9	0.8
-1.2	2.	1.8	1.8	0.2	1.2
-4.	5.	4.	5.	6.	4.
-0.1	0.15	0.15	0.15	0.13	0.1
-0.11	0.16	0.16	0.11	0.16	0.16
-0.16	0.16	0.11	0.13	0.13	0.11
-0.12	0.15	0.1	0.15	0.15	0.12
-0.13	0.15	0.1	0.13	0.13	0.1
-0.15	0.15	0.1	0.15	0.1	0.12
-'''
-text_lines = inputText.split('\n')
-text_lines.reverse()
+input_file = open('input4.txt')
 
-# %% get input values
-
-
-# read all lines
-lambdas = [float(x) for x in text_lines.pop().split()]
+lambdas = [float(x) for x in input_file.readline().split()]
 N = len(lambdas)
-expectedB = [float(x) for x in text_lines.pop().split()]
-expectedR = [float(x) for x in text_lines.pop().split()]
-k = [float(x) for x in text_lines.pop().split()]
-p = [[float(x) for x in text_lines.pop().split()] for y in range(N)]
+expectedB = [float(x) for x in input_file.readline().split()]
+expectedR = [float(x) for x in input_file.readline().split()]
+k = [float(x) for x in input_file.readline().split()]
+p = [[float(x) for x in input_file.readline().split()] for y in range(N)]
 
 # calculate pi0
 for line in p:
     line.insert(0, 1-sum(line))
-print(pd.DataFrame(p))
 
 # calculate exponential distributions for handling times
 service_rvs = []
@@ -46,10 +29,8 @@ service_rvs = []
 for i in range(N):
     service_rvs.append(stats.expon(scale=expectedB[i]))
 
-
 def sample_service_time(station_index):
     return service_rvs[station_index].rvs(1)[0]
-
 
 # %% define error class
 class OutOfTimeError(Exception):
@@ -65,6 +46,7 @@ class Simulation:
         self.stations = [Station(i) for i in range(n_stations)]
         self.time = 0.0
         random.seed(42)
+        np.random.seed(42)
 
     def getStation(self, rover_station):
         return self.stations[rover_station]
@@ -145,10 +127,8 @@ class Simulation:
                 self.nextStation()
         except OutOfTimeError:
             print("Out of time")
-            pass
         finally:
             return self.showResults()
-            pass
 
 # %% define station class
 class Station:
@@ -157,6 +137,7 @@ class Station:
         self.position = position
         self.queue = Queue()
         self.next_arrival = 0.0
+        self.arrival_dist = stats.expon(scale=1/lambdas[position])
         self.calcNextArrival()
         self.results = StationResults()
 
@@ -167,10 +148,7 @@ class Station:
             self.calcNextArrival()
 
     def calcNextArrival(self):
-        rate = lambdas[self.position]
-        n = random.random()
-        inter_event_time = -math.log(1.0 - n) / rate
-        self.next_arrival += inter_event_time
+        self.next_arrival += self.arrival_dist.rvs()
 
     def addCustomer(self, customer, time):
         customer.setWaitingTime(time)
@@ -327,6 +305,16 @@ def calcExpectedCycleTime():
     rho = calcNetworkUtilisation()
     return r / (1 - rho)
 
+def print_theoretical_values():
+    gammas = calcArrivalRate()
+    rho = calcNetworkUtilisation()
+    mean_cycle_time = calcExpectedCycleTime()
+
+    print('Gammas')
+    for i in range(len(gammas)):
+        print(f'\t{i}\t{gammas[i]}')
+    print(f'Rho: {rho}')
+    print(f'Cycle time: {mean_cycle_time}')
 # %%
 
 
