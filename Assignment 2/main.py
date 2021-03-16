@@ -388,16 +388,6 @@ def generate_q_paths():
     steady_state_boundary = StationResults.STEADY_STATE_BOUNDARY
     StationResults.STEADY_STATE_BOUNDARY = 0
 
-    colors = [
-        ['red'],
-        ['blue'],
-        ['green'],
-        ['black'],
-        ['cyan'],
-        ['magenta']]
-
-    jitter = 0.05
-
     for i in range(3):
         simulation = [Policy1, Policy2, Policy3][i](n_stations=parameters.n, duration=200)
         simulation.run()
@@ -405,19 +395,12 @@ def generate_q_paths():
 
         for s in range(parameters.n):
             station = simulation.stations[s]
+            color = ['red', 'blue', 'green', 'black', 'cyan', 'magenta'][s]
 
             lengths = station.results.queue_lengths
             times = station.results.queue_length_times
 
-            # Drop last value, because we don't know until what time the queue
-            # will have its last measured queue-length
-            y = lengths[:-1]
-            xmin = times[:-1]
-            _, *xmax = times
-
-            # apply some small offset to prevent overlapping
-            y = [length + s * jitter for length in y]
-            plt.hlines(y, xmin, xmax, label=f'Station {s + 1}', colors=colors[s])
+            plt.step(times, lengths, color=color, label=f'Station {s+1}')
 
         plt.xlabel('Time')
         plt.ylabel('Queue length (floor)')
