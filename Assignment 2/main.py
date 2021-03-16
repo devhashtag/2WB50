@@ -398,7 +398,7 @@ def generate_q_paths():
             lengths = station.results.queue_lengths
             times = station.results.queue_length_times
 
-            plt.plot(times, lengths, color=color, label=f'Station {s+1}')
+            plt.step(times, lengths, color=color, label=f'Station {s+1}')
 
         plt.xlabel('Time')
         plt.ylabel('Queue length (floor)')
