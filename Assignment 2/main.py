@@ -10,6 +10,7 @@ from numpy.linalg import LinAlgError
 from queue import Queue
 from abc import ABC, abstractmethod
 from functools import partial
+import matplotlib.pyplot as plt
 
 # %% Define custom exception
 class OutOfTimeError(Exception):
@@ -274,7 +275,7 @@ class StationResults:
     def __init__(self):
         self.waiting_times = []
         self.queue_lengths = []
-        self.queue_lenght_times = []
+        self.queue_length_times = []
         self.sojourn_times = []
         self.cycle_points = []
         self.cycle_times = []
@@ -286,7 +287,7 @@ class StationResults:
     def registerQueueLength(self, queue_length, time):
         if time > self.STEADY_STATE_BOUNDARY:
             self.queue_lengths.append(queue_length)
-            self.queue_lenght_times.append(time)
+            self.queue_length_times.append(time)
 
     def registerSojournTime(self, sojourn_time, time):
         if time > self.STEADY_STATE_BOUNDARY:
@@ -379,6 +380,54 @@ class ConfidenceInterval:
 parameters = InputParameters()
 TheoreticCalculations().print_values()
 
+# Generates paths for the 
+def generate_q_paths():
+    # We want the transient behaviour
+    steady_state_boundary = StationResults.STEADY_STATE_BOUNDARY
+    StationResults.STEADY_STATE_BOUNDARY = 0
+
+    colors = [
+        ['red'],
+        ['blue'],
+        ['green'],
+        ['black'],
+        ['cyan'],
+        ['magenta']]
+
+    jitter = 0.05
+
+    for i in range(3):
+        simulation = [Policy1, Policy2, Policy3][i](n_stations=parameters.n, duration=200)
+        simulation.run()
+        plt.subplots(figsize=(15,5))
+
+        for s in range(parameters.n):
+            station = simulation.stations[s]
+
+            lengths = station.results.queue_lengths
+            times = station.results.queue_length_times
+
+            # Drop last value, because we don't know until what time the queue
+            # will have its last measured queue-length
+            y = lengths[:-1]
+            xmin = times[:-1]
+            _, *xmax = times
+
+            # apply some small offset to prevent overlapping
+            y = [length + s * jitter for length in y]
+            plt.hlines(y, xmin, xmax, label=f'Station {s + 1}', colors=colors[s])
+
+        plt.xlabel('Time')
+        plt.ylabel('Queue length (floor)')
+        plt.title(f'Queue lengths with policy {i+1}')
+        plt.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        plt.savefig(f'queue_lengths_{i+1}')
+    
+    # reset back to original value
+    StationResults.STEADY_STATE_BOUNDARY = steady_state_boundary
+
+generate_q_paths()
+
 simulation1 = Policy1(n_stations=parameters.n, duration=100000)
 simulation2 = Policy2(n_stations=parameters.n, duration=100000)
 simulation3 = Policy3(n_stations=parameters.n, duration=100000)
@@ -404,5 +453,3 @@ ci2.printResults("Output_discipline2.txt")
 ci3 = ConfidenceInterval(Policy3(n_stations=parameters.n, duration=50000), iterations=50)
 ci3.calculate()
 ci3.printResults("Output_discipline3.txt")
-
-# %%
