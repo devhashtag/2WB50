@@ -380,7 +380,7 @@ class ConfidenceInterval:
 parameters = InputParameters()
 TheoreticCalculations().print_values()
 
-# Generates paths for the 
+# Generates paths for the queues
 def generate_q_paths():
     # We want the transient behaviour
     steady_state_boundary = StationResults.STEADY_STATE_BOUNDARY
