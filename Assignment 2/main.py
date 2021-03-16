@@ -1,6 +1,5 @@
 # %% imports
 import pandas as pd
-import random
 import math
 import statistics
 import random
@@ -9,47 +8,175 @@ from scipy import stats
 from numpy import array, dot
 from numpy.linalg import LinAlgError
 from queue import Queue
+from abc import ABC, abstractmethod
+from functools import partial
 
-input_file = open('input4.txt')
-
-lambdas = [float(x) for x in input_file.readline().split()]
-N = len(lambdas)
-expectedB = [float(x) for x in input_file.readline().split()]
-expectedR = [float(x) for x in input_file.readline().split()]
-k = [float(x) for x in input_file.readline().split()]
-p = [[float(x) for x in input_file.readline().split()] for y in range(N)]
-
-# calculate pi0
-for line in p:
-    line.insert(0, 1-sum(line))
-
-# calculate exponential distributions for handling times
-service_rvs = []
-
-for i in range(N):
-    service_rvs.append(stats.expon(scale=expectedB[i]))
-
-def sample_service_time(station_index):
-    return service_rvs[station_index].rvs(1)[0]
-
-# %% define error class
+# %% Define custom exception
 class OutOfTimeError(Exception):
     pass
+# %% Define class to read and process input
+class InputParameters:
+    def __init__(self, filename='input4.txt'):
+        self.input_file = open(filename)
+        self.__parse_file()
+        self.__process_file()
+    
+    def __parse_file(self):
+        self.arrival_rates = array([float(x) for x in self.input_file.readline().split()])
+        self.expected_service_times = array([float(x) for x in self.input_file.readline().split()])
+        self.expected_switchover_times = array([float(x) for x in self.input_file.readline().split()])
+        self.limited_service_constants = array([float(x) for x in self.input_file.readline().split()])
+        self.transition_matrix = array([[float(x) for x in line.split()] for line in self.input_file.readlines()])
+
+    def __process_file(self):
+        # retrieve N
+        self.n = len(self.arrival_rates)
+
+        # calculate the probabilities of leaving the system
+        remainders = [1.0 - sum(row) for row in self.transition_matrix]
+        self.transition_matrix = np.insert(self.transition_matrix, 0, remainders, 1)
+
+        # create the random variables
+        self.service_variables = [stats.expon(scale=mean) for mean in self.expected_service_times]
+    
+    def service_time(self, station_index):
+        return self.service_variables[station_index].rvs()
+
+    def switchover_time(self, station_index):
+        # Switch over times are deterministic
+        return self.expected_switchover_times[station_index]
+
+# %% Define class for doing the theoretic calculations
+class TheoreticCalculations:
+    # Calculates the total (external + internal) arrival rate of customers for each queue
+    def calc_arrival_rates(self):
+        matrix = parameters.transition_matrix
+        coefficients = np.delete(matrix, 0, 1).T - np.identity(parameters.n)
+        solutions = -1 * array(parameters.arrival_rates).reshape((parameters.n, 1))
+        try:
+            gammas = np.linalg.inv(coefficients) @ solutions
+            return gammas.flatten()
+        except LinAlgError:
+            raise Exception(
+                'Infinite amount of solutions possible for the theorical total arrival rates. This usually only happens if there is a station with a self-loop of probability 1.')
+
+    # Calculates the total network utilisation.
+    def calc_network_utilisation(self):
+        gammas = self.arrival_rates
+        service_times = parameters.expected_service_times
+        return dot(gammas, service_times)
+
+    # Calculates the expected cycle time of the rover.
+    # More precise: it is the mean time between two consecutive arrivals
+    # of the rover at station i.
+    def calc_cycle_time(self):
+        r = sum(parameters.expected_switchover_times)
+        rho = self.network_utilisation
+        return r / (1 - rho)
+
+    @property
+    def arrival_rates(self):
+        if not hasattr(self, '_arrival_rates'):
+            self._arrival_rates = self.calc_arrival_rates()
+        return self._arrival_rates
+
+    @property
+    def network_utilisation(self):
+        if not hasattr(self, '_network_util'):
+            self._network_util = self.calc_network_utilisation()
+        return self._network_util
+
+    @property
+    def cycle_time(self):
+        if not hasattr(self, '_cycle_time'):
+            self._cycle_time = self.calc_cycle_time()
+        return self._cycle_time
+
+    def print_values(self):
+        gammas = self.arrival_rates
+        rho = self.network_utilisation
+        mean_cycle_time = self.cycle_time
+
+        print('Gammas')
+        for i in range(len(gammas)):
+            print(f'\t{i}\t{gammas[i]}')
+        print(f'Rho: {rho}')
+        print(f'Cycle time: {mean_cycle_time}')
 
 # %% define simulation class
-class Simulation:
-
-    def __init__(self, n_stations, discipline, duration, rover_station=0, seed=42):
-        self.rover_station = rover_station
-        self.discipline = discipline
+class Simulation(ABC):
+    def __init__(self, n_stations, duration, rover_station=0, seed=42):
+        random.seed(seed)
+        np.random.seed(seed)
+        self.n_stations = n_stations
         self.duration = duration
-        self.stations = [Station(i) for i in range(n_stations)]
-        self.time = 0.0
-        random.seed(42)
-        np.random.seed(42)
+        self.initial_station = rover_station
 
-    def getStation(self, rover_station):
-        return self.stations[rover_station]
+    def initialize(self):
+        self.stations = [Station(i) for i in range(self.n_stations)]
+        self.rover_station = self.initial_station
+        self.time = 0.0
+
+    @abstractmethod
+    def handleQueue(self):
+        pass
+
+    @property
+    def current_station(self):
+        return self.stations[self.rover_station]
+
+    def handleCustomer(self):
+        customer = self.current_station.next_customer()
+        self.time += self.current_station.service_time()
+        # save waiting time
+        self.stations[self.rover_station].results.registerWaitingTime(customer.getWaitingTime(self.time), self.time)
+
+        # select queue to move to
+        nextQueue = random.choices(range(parameters.n+1), weights=parameters.transition_matrix[self.rover_station])
+        nextStation = nextQueue[0]-1
+
+        # add customer to next queue or let him leave the system
+        if (nextStation != -1):
+            self.stations[nextStation].addCustomer(customer, self.time)
+        else:
+            self.stations[self.rover_station].handleExit(customer, self.time)
+
+    def nextStation(self):
+        self.time += parameters.switchover_time(self.rover_station)
+        self.stations[self.rover_station].results.registerCycleTime(self.time)
+        self.rover_station = (self.rover_station + 1) % parameters.n
+
+    def run(self):
+        self.initialize()
+        try:
+            while True:
+                self.handleQueue()
+                self.nextStation()
+        except OutOfTimeError:
+            return self.showResults()
+
+    def set_time(self, value):
+        self._time = value
+        self.checkTime()
+
+    def get_time(self):
+        return self._time
+
+    def checkTime(self):
+        # save queue length
+        [station.saveQueueLength(self.time) for station in self.stations]
+
+        # check for arrivals
+        [station.checkArrival(self.time) for station in self.stations]
+
+        # stop if duration has been reached
+        if self.time >= self.duration:
+            raise OutOfTimeError()
+
+    time = property(get_time, set_time)
+
+    def printQueues(self):
+        [station.printQueue(self.time) for station in self.stations]
 
     def showResults(self):
         mean_waiting_times = [station.results.getMeanWaitingTime() for station in self.stations]
@@ -74,72 +201,48 @@ class Simulation:
         df = pd.DataFrame(data)
         return df
 
-    def printQueues(self):
-        [station.printQueue(self.time) for station in self.stations]
-
+# %% Define the policies
+class Policy1(Simulation):
     def handleQueue(self):
-        queue = self.stations[self.rover_station].queue
-        initialQSize = queue.qsize()
-        i = 0
-        while self.discipline(queue, i, initialQSize, k[self.rover_station]):
-            customer = queue.get()
-            self.handleCustomer(customer)
-            self.time += sample_service_time(self.rover_station)
-            queue.task_done()
-            self.checkTime()
-            i += 1
+        while not self.current_station.is_empty:
+            self.handleCustomer()
 
-    def handleCustomer(self, customer):
-        # save waiting time
-        self.stations[self.rover_station].results.registerWaitingTime(customer.getWaitingTime(self.time), self.time)
+class Policy2(Simulation):
+    def handleQueue(self):
+        k = self.current_station.service_limit
+        while k > 0 and not self.current_station.is_empty:
+            self.handleCustomer()
+            k -= 1
 
-        # select queue to move to
-        nextQueue = random.choices(range(N+1), weights=p[self.rover_station])
-        nextStation = nextQueue[0]-1
-
-        # add customer to next queue or let him leave the system
-        if (nextStation != -1):
-            self.stations[nextStation].addCustomer(customer, self.time)
-        else:
-            self.stations[self.rover_station].handleExit(customer, self.time)
-
-    def nextStation(self):
-        self.time += expectedR[self.rover_station]
-        self.stations[self.rover_station].results.registerCycleTime(self.time)
-        self.rover_station = (self.rover_station + 1) % N
-        self.checkTime()
-
-    def checkTime(self):
-        # save queue length
-        [station.saveQueueLength(self.time) for station in self.stations]
-
-        # check for arrivals
-        [station.checkArrival(self.time) for station in self.stations]
-
-        # stop if duration has been reached
-        if self.time >= self.duration:
-            raise OutOfTimeError()
-
-    def run(self):
-        try:
-            while True:
-                self.handleQueue()
-                self.nextStation()
-        except OutOfTimeError:
-            print("Out of time")
-        finally:
-            return self.showResults()
+class Policy3(Simulation):
+    def handleQueue(self):
+        n = self.current_station.q_length
+        while n > 0:
+            self.handleCustomer()
+            n -= 1
 
 # %% define station class
 class Station:
-
     def __init__(self, position):
         self.position = position
         self.queue = Queue()
         self.next_arrival = 0.0
-        self.arrival_dist = stats.expon(scale=1/lambdas[position])
+        self.arrival_dist = stats.expon(scale=1/parameters.arrival_rates[position])
+        self.service_limit = parameters.limited_service_constants[position]
+        self.service_time = partial(parameters.service_time, position)
         self.calcNextArrival()
         self.results = StationResults()
+
+    @property
+    def q_length(self):
+        return self.queue.qsize()
+
+    @property
+    def is_empty(self):
+        return self.q_length == 0
+
+    def next_customer(self):
+        return self.queue.get()
 
     def checkArrival(self, time):
         if (self.next_arrival <= time):
@@ -166,12 +269,12 @@ class Station:
 
 # %% define station results class
 class StationResults:
-
     STEADY_STATE_BOUNDARY = 1000
 
     def __init__(self):
         self.waiting_times = []
         self.queue_lengths = []
+        self.queue_lenght_times = []
         self.sojourn_times = []
         self.cycle_points = []
         self.cycle_times = []
@@ -183,6 +286,7 @@ class StationResults:
     def registerQueueLength(self, queue_length, time):
         if time > self.STEADY_STATE_BOUNDARY:
             self.queue_lengths.append(queue_length)
+            self.queue_lenght_times.append(time)
 
     def registerSojournTime(self, sojourn_time, time):
         if time > self.STEADY_STATE_BOUNDARY:
@@ -246,20 +350,18 @@ class Customer:
 
 # %% define confidence interval class
 class ConfidenceInterval:
-    
-    def __init__(self, n_stations, discipline, duration, iterations):
-        self.n_stations = n_stations
-        self.discipline = discipline
-        self.duration = duration
+    def __init__(self, simulation, iterations):
+        self.simulation = simulation
+        self.n_stations = simulation.n_stations
+        self.duration = simulation.duration
         self.iterations = iterations
-        self.mean_waiting_times = [[] for _ in range(n_stations)]
+        self.mean_waiting_times = [[] for _ in range(self.n_stations)]
 
     def calculate(self):
         # run simulations
         for i in range(self.iterations):
             print(f"Run {i}")
-            sim = Simulation(self.n_stations, self.discipline, self.duration)
-            res = sim.run()
+            res = self.simulation.run()
             [self.mean_waiting_times[j].append(res['E[W]'][j]) for j in range(self.n_stations)]
         
         # calculate confidence intervals of results
@@ -272,68 +374,14 @@ class ConfidenceInterval:
             [print(f"{interval}", file=text_file) for interval in self.intervals]
         [print(interval) for interval in self.intervals]
 
-# %% Theoretical values
-
-# Calculates the total (external + internal) arrival rate of customers for each queue
-def calcArrivalRate():
-    # set up the equations as matrices
-    p_ = array(p)
-    coefficients = np.delete(p_, 0, 1).T - np.identity(N)
-    solutions = -1 * array(lambdas).reshape((N, 1))
-    try:
-        gammas = np.linalg.inv(coefficients) @ solutions
-        return gammas.flatten()
-    except LinAlgError:
-        raise Exception(
-            'Infinite amount of solutions possible for the theorical total arrival rates. This usually only happens if there is a station with a self-loop of probability 1.')
-
-
-# Calculates the total network utilisation.
-# The system is stable if this value is strictly less than 1,
-# otherwise all performance measures will be infinite
-def calcNetworkUtilisation():
-    gammas = calcArrivalRate()
-    service_times = expectedB
-    return dot(gammas, service_times)
-
-
-# Calculates the expected cycle time of the rover.
-# More precise: it is the mean time between two consecutive arrivals
-# of the rover at station i.
-def calcExpectedCycleTime():
-    r = sum(expectedR)
-    rho = calcNetworkUtilisation()
-    return r / (1 - rho)
-
-def print_theoretical_values():
-    gammas = calcArrivalRate()
-    rho = calcNetworkUtilisation()
-    mean_cycle_time = calcExpectedCycleTime()
-
-    print('Gammas')
-    for i in range(len(gammas)):
-        print(f'\t{i}\t{gammas[i]}')
-    print(f'Rho: {rho}')
-    print(f'Cycle time: {mean_cycle_time}')
-# %%
-
-
-def discipline1(stationQ, i, initialQSize, k):
-    return not stationQ.empty()
-
-
-def discipline2(stationQ, i, initialQSize, k):
-    return not stationQ.empty() and i < k
-
-
-def discipline3(stationQ, i, initialQSize, k):
-    return not stationQ.empty() and i < initialQSize
 
 # %% run simulations
+parameters = InputParameters()
+TheoreticCalculations().print_values()
 
-simulation1 = Simulation(n_stations=N, discipline=discipline1, duration=100000)
-simulation2 = Simulation(n_stations=N, discipline=discipline2, duration=100000)
-simulation3 = Simulation(n_stations=N, discipline=discipline3, duration=100000)
+simulation1 = Policy1(n_stations=parameters.n, duration=100000)
+simulation2 = Policy2(n_stations=parameters.n, duration=100000)
+simulation3 = Policy3(n_stations=parameters.n, duration=100000)
 
 results_discipline1 = simulation1.run()
 results_discipline2 = simulation2.run()
@@ -345,15 +393,15 @@ print(f'Discipline 3: \n {results_discipline3}\n')
 
 # %% calculate confidence intervals
 
-ci1 = ConfidenceInterval(n_stations=N, discipline=discipline1, duration=50000, iterations=50)
+ci1 = ConfidenceInterval(Policy1(n_stations=parameters.n, duration=50000), iterations=50)
 ci1.calculate()
 ci1.printResults("Output_discipline1.txt")
 
-ci2 = ConfidenceInterval(n_stations=N, discipline=discipline2, duration=50000, iterations=50)
+ci2 = ConfidenceInterval(Policy2(n_stations=parameters.n, duration=50000), iterations=50)
 ci2.calculate()
 ci2.printResults("Output_discipline2.txt")
 
-ci3 = ConfidenceInterval(n_stations=N, discipline=discipline3, duration=50000, iterations=50)
+ci3 = ConfidenceInterval(Policy3(n_stations=parameters.n, duration=50000), iterations=50)
 ci3.calculate()
 ci3.printResults("Output_discipline3.txt")
 
