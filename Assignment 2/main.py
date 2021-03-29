@@ -106,7 +106,7 @@ class TheoreticCalculations:
 
 # %% define simulation class
 class Simulation(ABC):
-    def __init__(self, n_stations, duration, rover_station=0, seed=42):
+    def __init__(self, n_stations, duration, rover_station=0, seed=69):
         random.seed(seed)
         np.random.seed(seed)
         self.n_stations = n_stations
@@ -270,10 +270,11 @@ class Station:
 
 # %% define station results class
 class StationResults:
-    STEADY_STATE_BOUNDARY = 1000
+    STEADY_STATE_BOUNDARY = 20000
 
     def __init__(self):
         self.waiting_times = []
+        self.waiting_time_moments = []
         self.queue_lengths = []
         self.queue_length_times = []
         self.sojourn_times = []
@@ -283,6 +284,7 @@ class StationResults:
     def registerWaitingTime(self, waiting_time, time):
         if time > self.STEADY_STATE_BOUNDARY:
             self.waiting_times.append(waiting_time)
+            self.waiting_time_moments.append(time)
 
     def registerQueueLength(self, queue_length, time):
         if time > self.STEADY_STATE_BOUNDARY:
@@ -411,6 +413,8 @@ def generate_q_paths():
 
 generate_q_paths()
 
+# %%
+
 simulation1 = Policy1(n_stations=parameters.n, duration=100000)
 simulation2 = Policy2(n_stations=parameters.n, duration=100000)
 simulation3 = Policy3(n_stations=parameters.n, duration=100000)
@@ -423,16 +427,37 @@ print(f'Discipline 1: \n {results_discipline1}\n')
 print(f'Discipline 2: \n {results_discipline2}\n')
 print(f'Discipline 3: \n {results_discipline3}\n')
 
+# %%
+sim = Policy3(n_stations=parameters.n, duration=100000)
+res = sim.run()
+
+for station_nr in range(parameters.n):
+    means = []
+
+    res_waiting_times = sim.stations[station_nr].results.waiting_times
+    res_waiting_time_moments = sim.stations[station_nr].results.waiting_time_moments
+
+    for i in range(len(res_waiting_times)):
+        means.append(np.mean(res_waiting_times[:i]))
+
+    plt.plot(res_waiting_time_moments, means)
+
+plt.legend([f"Station {i+1}" for i in range(parameters.n)], loc='upper left', bbox_to_anchor=(1, 1))
+plt.xlabel("Time")
+plt.ylabel("Mean waiting time")
+plt.show()
+
 # %% calculate confidence intervals
 
-ci1 = ConfidenceInterval(Policy1(n_stations=parameters.n, duration=50000), iterations=50)
+ci1 = ConfidenceInterval(Policy1(n_stations=parameters.n, duration=100000), iterations=50)
 ci1.calculate()
 ci1.printResults("Output_discipline1.txt")
 
-ci2 = ConfidenceInterval(Policy2(n_stations=parameters.n, duration=50000), iterations=50)
+ci2 = ConfidenceInterval(Policy2(n_stations=parameters.n, duration=100000), iterations=50)
 ci2.calculate()
 ci2.printResults("Output_discipline2.txt")
 
-ci3 = ConfidenceInterval(Policy3(n_stations=parameters.n, duration=50000), iterations=50)
+ci3 = ConfidenceInterval(Policy3(n_stations=parameters.n, duration=100000), iterations=50)
 ci3.calculate()
 ci3.printResults("Output_discipline3.txt")
+# %%
