@@ -97,6 +97,18 @@ import numpy as np
 from abc import ABC, abstractmethod
 from scipy.stats import truncnorm, expon
 from queue import Queue
+import NHPP
+
+arrival_rates = [5.76, 5.94, 7.20, 7.56, 8.28, 7.56, 5.94, 5.40, 5.22, 5.76, 6.66, 7.56, 7.74, 6.84, 6.12, 6.30, 6.84, 6.66, 10.44, 8.64, 9.18, 12.24, 12.6, 7.56]
+max_rate = max(arrival_rates)
+
+# TODO: Make limits (opening/closing time) configurable
+def arrival_rate(t):
+    if t < 0 or t > 720:
+        raise RuntimeError(f'Time should be between {0} and {720}')
+
+    index = 0 if t == 0 else (t-1) // 30 
+    return arrival_rates[index]
 
 def to_time(minutes):
     return f'{minutes // 60}:{minutes % 60}'
