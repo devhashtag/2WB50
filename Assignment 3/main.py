@@ -92,6 +92,7 @@ Copy of the code
 
 
 import heapq
+import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 from abc import ABC, abstractmethod
@@ -137,14 +138,13 @@ class FES:
 
 
 class Donor:
-    NEXT_ID = 0
+    ID = itertools.count().__next__
 
     WHOLE_BLOOD = 0
     PLASMA = 1
 
     def __init__(self, time, donor_type=WHOLE_BLOOD):
-        self.id = Donor.NEXT_ID
-        Donor.NEXT_ID += 1
+        self.id = Donor.ID()
         self.arrival_time = time
         self.donor_type = donor_type
 
@@ -171,6 +171,9 @@ class Simulation:
         self.closing_time = 20 * 60
         self.generate_plasma_arrrivals()
 
+    def register_event(self, event):
+        event.belongs_in(self.event_q)
+
     def simulate(self, n_days):
         for i in range(n_days):
             self.simulate_day()
@@ -193,12 +196,16 @@ class Simulation:
     def generate_plasma_arrrivals(self):
         for t in range(self.opening_time, self.closing_time - 60, 6):
             donor = Donor(t, Donor.PLASMA)
-            arrival = ArrivalEvent(Event.ARRIVAL, t, donor, self.event_q)
-            self.event_q.push(arrival)
+            arrival = ArrivalEvent(t, donor)
+            self.register_event(arrival)
 
     def generate_whole_blood_arrivals(self):
-        raise NotImplementedError(
-            'Watch non-homogenuous poisson process lecture first')
+        generator = NNHP(arrival_rate, max_rate)
+        arrivals = generator.arrivals(0, self.closing_time - self.opening_time)
+        for arrival_time in arrivals:
+            arriving_donor = Donor(arrival_time, Donor.WHOLE_BLOOD)
+            arrival_event = ArrivalEvent(arrival_time, arriving_donor)
+            self.register_event(arrival_event)
 
 # %%
 
@@ -253,13 +260,20 @@ class Queues:
 
 # %%
 class Event(ABC):
-    def __init__(self, time, donor, FES):
+    def __init__(self, time=None, donor=None):
         self.time = time
         self.donor = donor
-        self.FES = FES
+        self.FES = None
 
-    def add_event(self, event):
-        self.FES.push(event)
+    def belongs_in(self, fes):
+        if self.FES != None:
+            raise RuntimeError('Event already belongs to an event queue')
+
+        self.FES = fes
+        self.FES.push(self)
+
+    def register(self, event):
+        event.belongs_in(self.FES)
 
     @abstractmethod
     def handle(self):
