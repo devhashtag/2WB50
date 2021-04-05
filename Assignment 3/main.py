@@ -151,6 +151,9 @@ class Donor:
     def set_waiting_time(self, time):
         self.waiting_time = time
 
+    def get_sojourn_time(self, time):
+        return time - self.arrival_time
+
 # %%
 
 class Simulation:
@@ -164,12 +167,18 @@ class Simulation:
     dist_disconnect = expon(scale=1/2.0)
     dist_recover = expon(scale=1/4.0)
 
-    def __init__(self):
+    def __init__(self, interviewers=2, nurses=4, beds_blood=7, beds_plasma=7):
         self.event_q = FES()
         self.handled_events = []
         self.opening_time = 8 * 60
         self.closing_time = 20 * 60
-        self.generate_plasma_arrrivals()
+        self.queues = Queues()
+        self.results = SimResults()
+        self.available_interviewers = interviewers
+        self.available_nurses = nurses
+        self.available_beds_blood = beds_blood
+        self.available_beds_plasma = beds_plasma
+        self.generate_plasma_arrrivals() # is dit nodig?
 
     def register_event(self, event):
         event.belongs_in(self.event_q)
@@ -186,7 +195,7 @@ class Simulation:
         while self.time < self.closing_time:
             next_event = self.event_q.pop()
             self.time = next_event
-            next_event.handle()
+            next_event.handle(self)
             self.handled_events.append(next_event)
 
     def generate_arrivals(self):
@@ -207,20 +216,58 @@ class Simulation:
             arrival_event = ArrivalEvent(arrival_time, arriving_donor)
             self.register_event(arrival_event)
 
+    def occupy_interviewer(self):
+        if self.available_interviewers > 0:
+            self.available_interviewers -= 1
+        else: raise RuntimeError('No interviewers available')
+    
+    def free_interviewer(self):
+        self.available_interviewers += 1
+
+    def occupy_nurse(self):
+        if self.available_nurses > 0:
+            self.available_nurses -= 1
+        else: raise RuntimeError('No nurses available')
+
+    def free_nurse(self):
+        self.available_nurses += 1
+
+    def occupy_bed(self, donor_type):
+        if donor_type == Donor.WHOLE_BLOOD:
+            if self.available_beds_blood > 0:
+                self.available_beds_blood -= 1
+            else: raise RuntimeError('No blood beds available')
+        elif donor_type == Donor.PLASMA:
+            if self.available_beds_plasma > 0:
+                self.available_beds_plasma -= 1
+            else: raise RuntimeError('No plasma beds available')
+
+    def free_bed(self, donor_type):
+        if donor_type == Donor.WHOLE_BLOOD:
+            self.available_beds_blood += 1
+        elif donor_type == Donor.PLASMA:
+            self.available_beds_plasma += 1
+
 # %%
 
 class Queues:
     # Make new and empty queues
     def __init__(self):
         self.registration_queue = queue.queue()
+        self.registration_queue_res = QueueResults()
 
         self.interview_waiting_room_blood = queue.queue()
+        self.interview_waiting_room_blood_res = QueueResults()
         self.interview_waiting_room_plasma = queue.queue()
+        self.interview_waiting_room_plasma_res = QueueResults()
 
         self.donation_blood_queue = queue.queue()
+        self.donation_blood_queue_res = QueueResults()
         self.donation_plasma_queue = queue.queue()
+        self.donation_plasma_queue_res = QueueResults()
 
         self.disconnect_queue = queue.queue()
+        self.disconnect_queue_res = QueueResults()
 
     def put_registration_queue(self, donor):
         self.registration_queue.put(donor)
@@ -272,11 +319,12 @@ class Event(ABC):
         self.FES = fes
         self.FES.push(self)
 
-    def register(self, event):
+    # wanneer kan je dit gebruiken? je kan toch nooit een event zichzelf laten registeren want dan heeft hij toch nog geen FES 
+    def register(self, event): 
         event.belongs_in(self.FES)
 
     @abstractmethod
-    def handle(self):
+    def handle(self, sim):
         pass
 
     def __lt__(self, other):
@@ -287,84 +335,133 @@ class Event(ABC):
 
 
 class ArrivalEvent(Event):
-    def handle(self):
+    def handle(self, sim):
         # put donor in registration queue
+        sim.queues.put_registration_queue(self.donor)
         # start waiting time
-        pass
+        self.donor.set_waiting_time(self.time)
 
 
 class CheckinEvent(Event):
-    def handle(self):
+    def handle(self, sim):
         # set questionaire done time and event
+        done_time = self.time + Simulation.dist_questionnaire.rvs()
+        event = QuestionaireEvent(done_time, self.donor)
+        event.belongs_in(self.FES)
         # register waiting time
+        sim.queues.registration_queue_res.registerWaitingTime(self.time - self.donor.waiting_time)
         pass
 
 
 class QuestionaireEvent(Event):
-    def handle(self):
+    def handle(self, sim):
         # put donor in interview queue
+        sim.queues.put_interview_waiting_room(self.donor) 
         # start waiting time
+        self.donor.set_waiting_time(self.time)
         pass
 
 
 class InterviewStartEvent(Event):
-    def handle(self):
+    def handle(self, sim):
         # set end interview time and event
+        done_time = self.time + Simulation.dist_interview.rvs()
+        event = InterviewStopEvent(done_time, self.donor)
+        event.belongs_in(self.FES)
         # register waiting time
+        wTime = self.time - self.donor.waiting_time
+        if (self.donor.donor_type == Donor.WHOLE_BLOOD):
+            sim.queues.interview_waiting_room_blood_res.registerWaitingTime(wTime) 
+        elif (self.donor.donor_type == Donor.PLASMA):
+            sim.queues.interview_waiting_room_plasma_res.registerWaitingTime(wTime) 
         # occupy interviewer
+        sim.occupy_interviewer() # TODO
         pass
 
 
 class InterviewStopEvent(Event):
-    def handle(self):
+    def handle(self, sim):
         # put donor in donation waiting queue
+        sim.queues.put_donation_queue(self.donor) 
         # start waiting time
+        self.donor.set_waiting_time(self.time)
         # free interviewer
+        sim.free_interviewer() # TODO
         pass
 
 
 class StartConnectEvent(Event):
-    def handle(self):
+    def handle(self, sim):
         # set connect end time and event
+        done_time = self.time + Simulation.dist_connect.rvs()
+        event = EndConnectEvent(done_time, self.donor)
+        event.belongs_in(self.FES)
         # register waiting time
+        wTime = self.time - self.donor.waiting_time
+        if (self.donor.donor_type == Donor.WHOLE_BLOOD):
+            sim.queues.donation_blood_queue_res.registerWaitingTime(wTime) 
+        elif (self.donor.donor_type == Donor.PLASMA):
+            sim.queues.donation_plasma_queue_res.registerWaitingTime(wTime) 
         # occupy nurse
+        sim.occupy_nurse() 
         # occupy bed
+        sim.occupy_bed(self.donor.donor_type) 
         pass
 
 
 class EndConnectEvent(Event):
-    def handle(self):
+    def handle(self, sim):
         # set ready disconnect time and event
+        if (self.donor.donor_type == Donor.WHOLE_BLOOD):
+            done_time = self.time + Simulation.dist_whole_blood.rvs()
+        elif (self.donor.donor_type == Donor.PLASMA):
+            done_time = self.time + Simulation.dist_plasma.rvs()
+        event = DisconnectReadyEvent(done_time, self.donor)
+        event.belongs_in(self.FES)
         # free nurse
+        sim.free_nurse() 
         pass
 
 
 class DisconnectReadyEvent(Event):
-    def handle(self):
+    def handle(self, sim):
         # put donor in disconnect queue
+        sim.queues.put_disconnect_queue(self.donor) 
         # start waiting time
+        self.donor.set_waiting_time(self.time)
         pass
 
 
 class StartDisconnectEvent(Event):
-    def handle(self):
+    def handle(self, sim):
         # set disconnect end time and event
+        done_time = self.time + Simulation.dist_disconnect.rvs()
+        event = EndDisconnectEvent(done_time, self.donor)
+        event.belongs_in(self.FES)
         # register waiting time
+        sim.queues.disconnect_queue_res.registerWaitingTime(wTime)
         # occupy nurse
+        sim.occupy_nurse() 
         pass
 
 
 class EndDisconnectEvent(Event):
-    def handle(self):
+    def handle(self, sim):
         # set leave time and event
+        done_time = self.time + Simulation.dist_recover.rvs()
+        event = LeaveEvent(done_time, self.donor)
+        event.belongs_in(self.FES)
         # free nurse
+        sim.free_nurse()
         pass
 
 
 class LeaveEvent(Event):
-    def handle(self):
+    def handle(self, sim):
         # register sojourn time
+        sim.results.registerSojournTime(self.donor.get_sojourn_time(self.time))
         # free bed
+        sim.free_bed(self.donor.donor_type) 
         pass
 
 # %%
