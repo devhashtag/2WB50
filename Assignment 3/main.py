@@ -348,8 +348,9 @@ class CheckinEvent(Event):
         done_time = self.time + Simulation.dist_questionnaire.rvs()
         event = QuestionaireEvent(done_time, self.donor)
         event.belongs_in(self.FES)
-        # register waiting time
+        # register waiting time and queue length
         sim.queues.registration_queue_res.registerWaitingTime(self.time - self.donor.waiting_time)
+        sim.queues.registration_queue_res.registerQueueLength(self.time, sim.queues.registration_queue.qsize())
         pass
 
 
@@ -368,12 +369,14 @@ class InterviewStartEvent(Event):
         done_time = self.time + Simulation.dist_interview.rvs()
         event = InterviewStopEvent(done_time, self.donor)
         event.belongs_in(self.FES)
-        # register waiting time
+        # register waiting time and queue length
         wTime = self.time - self.donor.waiting_time
         if (self.donor.donor_type == Donor.WHOLE_BLOOD):
-            sim.queues.interview_waiting_room_blood_res.registerWaitingTime(wTime) 
+            sim.queues.interview_waiting_room_blood_res.registerWaitingTime(wTime)
+            sim.queues.interview_waiting_room_blood_res.registerQueueLength(self.time, sim.queues.interview_waiting_room_blood.qsize())
         elif (self.donor.donor_type == Donor.PLASMA):
             sim.queues.interview_waiting_room_plasma_res.registerWaitingTime(wTime) 
+            sim.queues.interview_waiting_room_plasma_res.registerQueueLength(self.time, sim.queues.interview_waiting_room_plasma.qsize())
         # occupy interviewer
         sim.occupy_interviewer() # TODO
         pass
@@ -396,12 +399,14 @@ class StartConnectEvent(Event):
         done_time = self.time + Simulation.dist_connect.rvs()
         event = EndConnectEvent(done_time, self.donor)
         event.belongs_in(self.FES)
-        # register waiting time
+        # register waiting time and queue length
         wTime = self.time - self.donor.waiting_time
         if (self.donor.donor_type == Donor.WHOLE_BLOOD):
             sim.queues.donation_blood_queue_res.registerWaitingTime(wTime) 
+            sim.queues.donation_blood_queue_res.registerQueueLength(self.time, sim.queues.donation_blood_queue.qsize())
         elif (self.donor.donor_type == Donor.PLASMA):
             sim.queues.donation_plasma_queue_res.registerWaitingTime(wTime) 
+            sim.queues.donation_plasma_queue_res.registerQueueLength(self.time, sim.queues.donation_plasma_queue.qsize())
         # occupy nurse
         sim.occupy_nurse() 
         # occupy bed
@@ -438,8 +443,9 @@ class StartDisconnectEvent(Event):
         done_time = self.time + Simulation.dist_disconnect.rvs()
         event = EndDisconnectEvent(done_time, self.donor)
         event.belongs_in(self.FES)
-        # register waiting time
+        # register waiting time and queue length
         sim.queues.disconnect_queue_res.registerWaitingTime(wTime)
+        sim.queues.disconnect_queue_res.registerQueueLength(self.time, sim.queues.disconnect_queue.qsize())
         # occupy nurse
         sim.occupy_nurse() 
         pass
