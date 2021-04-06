@@ -319,6 +319,7 @@ class Event(ABC):
         self.FES.push(self)
 
     # wanneer kan je dit gebruiken? je kan toch nooit een event zichzelf laten registeren want dan heeft hij toch nog geen FES 
+    # > Dit kun je gebruiken om vanuit een bestaand event een nieuw event te registreren
     def register(self, event): 
         event.belongs_in(self.FES)
 
