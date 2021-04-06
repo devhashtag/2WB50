@@ -178,7 +178,6 @@ class Simulation:
         self.available_nurses = nurses
         self.available_beds_blood = beds_blood
         self.available_beds_plasma = beds_plasma
-        self.generate_plasma_arrrivals() # is dit nodig?
 
     def register_event(self, event):
         event.belongs_in(self.event_q)
