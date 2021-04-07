@@ -25,23 +25,28 @@ def arrive(time, donor):
     donor.enter(registration_q)
     donor.enter(registration_line)
 
-system.on(system.ENTER, arrive)
-
-def on_leave(time, donor):
-    donor.leave(registration_line)
+def registration_leave(time, donor):
+    print('in registration leave')
     donor.enter(question_room)
 
-system.on(registration_q.LEAVE, on_leave)
+def registration_policy(nurse, time, action_builder):
+    if registration_q.is_empty():
+        return
 
-def registration(nurse, time):
-    donor = registation_q.first()
-    donor.leave_at()
+    donor = registration_q.first()
+    action_builder.set_donor(donor)
+    nurse.occupied = True
+    action_builder.leave(registration_q)
+    action_builder.leave_at(registration_line, time + 50).free_staff(nurse) # TODO: make use of distribution
 
-receptionist.policy = registration
+system.on(system.ENTER, arrive)
+system.on(registration_line.LEAVE, registration_leave)
+
+receptionist.policy = registration_policy
 receptionist.subscribe(registration_q.ENTER)
 
-
 simulator = Simulator(system)
+print('Starting simulation')
 handled_events = simulator.simulate(1000)
 for handled_event in handled_events:
     print(vars(handled_event))
