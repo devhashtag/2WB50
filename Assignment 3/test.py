@@ -1,4 +1,4 @@
-from builder import *
+from system import *
 
 system = System("Blood collection site")
 registration_line = system.createSection("Registration line")
@@ -21,32 +21,29 @@ nurse2 = system.createStaff("Nurse 2")
 nurse3 = system.createStaff("Nurse 3")
 nurse4 = system.createStaff("Nurse 4")
 
-def arrive(time, donor):
-    donor.enter(registration_q)
-    donor.enter(registration_line)
-
-def registration_leave(time, donor):
-    print('in registration leave')
-    donor.enter(question_room)
+def arrive(time, action_builder):
+    action_builder.enter(registration_q)
+    action_builder.enter(registration_line)
 
 def registration_policy(nurse, time, action_builder):
     if registration_q.is_empty():
         return
 
-    donor = registration_q.first()
-    action_builder.set_donor(donor)
     nurse.occupied = True
-    action_builder.leave(registration_q)
-    action_builder.leave_at(registration_line, time + 50).free_staff(nurse) # TODO: make use of distribution
+    donor = registration_q.first()
+    action_builder.use_donor(donor)
 
-system.on(system.ENTER, arrive)
-system.on(registration_line.LEAVE, registration_leave)
+    action_builder.leave(registration_q)
+    action_builder.leave_at(time + 50, registration_line, staff_member=nurse)
 
 receptionist.policy = registration_policy
+
+system.subscribe(system.ENTER, arrive)
 receptionist.subscribe(registration_q.ENTER)
 
 simulator = Simulator(system)
 print('Starting simulation')
 handled_events = simulator.simulate(1000)
 for handled_event in handled_events:
-    print(vars(handled_event))
+    for action in handled_event.executed_actions:
+        print(action)
