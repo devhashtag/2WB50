@@ -2,6 +2,7 @@ from scipy.stats import expon, uniform
 from collections import deque
 from math import sin, pi 
 import matplotlib.pyplot as plt
+import heapq
 
 # Simulates a non-homogenous poisson process
 class NHPP:
@@ -25,3 +26,33 @@ class NHPP:
                 arrivals.append(time)
 
         return list(arrivals)
+
+
+# copied and adapted from lecture notes
+class FES:
+    def __init__(self):
+        self.events = []
+
+    def enqueue(self, event):
+        heapq.heappush(self.events, event)
+
+    def pop(self):
+        self.ensure_not_empty()
+        return heapq.heappop(self.events)
+
+    def peek(self):
+        self.ensure_not_empty()
+        return self.events[0]
+
+    def clear(self):
+        self.events = []
+
+    def is_empty(self):
+        return len(self.events) == 0
+
+    def ensure_not_empty(self):
+        if len(self.events) == 0:
+            raise RuntimeError('The queue is empty')
+
+def to_time(minutes):
+    return f'{minutes // 60}:{minutes % 60}'
