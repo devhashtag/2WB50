@@ -88,9 +88,6 @@ Copy of the code
 
 # %%
 
-
-
-
 import heapq
 import itertools
 import matplotlib.pyplot as plt
@@ -547,6 +544,16 @@ class QueueResults:
         plt.figure()
         plt.hist(self.waiting_times, bins=nrBins, rwidth=0.8, density=True)
         plt.show()
+
+    # def registerCycleTime(self):
+    #     self.queue_at_times.append(self.sum_queue_lengths)
+
+    # def plotQueueLenthPerHour(self):
+    #     plt.figure()
+    #     plt.plot(self.queue_at_times)
+
+
+    #Queue length per hour
 
 
 # %%
