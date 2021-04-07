@@ -93,7 +93,7 @@ import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 from abc import ABC, abstractmethod
-from scipy.stats import truncnorm, expon
+from scipy.stats import truncnorm, expon, uniform
 from queue import Queue
 import NHPP
 
@@ -163,6 +163,7 @@ class Simulation:
     dist_plasma = truncnorm(0, np.infty, 45.0, 6.0)
     dist_disconnect = expon(scale=1/2.0)
     dist_recover = expon(scale=1/4.0)
+    dist_allowed_to_donate = uniform(0, 1.0)
 
     def __init__(self, interviewers=2, nurses=4, beds_blood=7, beds_plasma=7):
         self.event_q = FES()
@@ -193,6 +194,11 @@ class Simulation:
             self.time = next_event
             next_event.handle(self)
             self.handled_events.append(next_event)
+            self.handle_queues()
+
+    def handle_queues(self):
+        #  
+        # 
 
     def generate_arrivals(self):
         self.generate_plasma_arrrivals()
@@ -381,10 +387,12 @@ class InterviewStartEvent(Event):
 
 class InterviewStopEvent(Event):
     def handle(self, sim):
-        # put donor in donation waiting queue
-        sim.queues.put_donation_queue(self.donor) 
-        # start waiting time
-        self.donor.set_waiting_time(self.time)
+        # determine if donor may donate
+        if (Simulation.dist_allowed_to_donate.rvs() >= 0.05):
+            # put donor in donation waiting queue
+            sim.queues.put_donation_queue(self.donor) 
+            # start waiting time
+            self.donor.set_waiting_time(self.time)
         # free interviewer
         sim.free_interviewer() # TODO
         pass
@@ -492,6 +500,8 @@ class QueueResults:
         self.sum_queue_lengths_squared = 0
         self.old_time = 0
         self.queue_length_histogram = zeros(self.MAX_QL + 1)
+        self.queue_lengths = []
+        self.queue_length_times = []
         self.sum_waiting_times = 0
         self.sum_waiting_times_squared = 0
         self.n_waiting_times = 0
@@ -503,6 +513,8 @@ class QueueResults:
         self.queue_length_histogram[min(
             ql, self.MAX_QL)] += (time - self.old_time)
         self.old_time = time
+        self.queue_lengths.append(ql)
+        self.queue_length_times.append(time)
 
     def registerWaitingTime(self, w):
         self.waiting_times.append(w)
