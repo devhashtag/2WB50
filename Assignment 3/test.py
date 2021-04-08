@@ -20,7 +20,6 @@ def register_handlers():
 
     for nurse in [nurse1, nurse2, nurse3, nurse4]:
         nurse.policy = donation_policy
-        # A nurse 
         nurse.subscribe(connect_q.ENTER)
         nurse.subscribe(disconnect_q.ENTER)
 
