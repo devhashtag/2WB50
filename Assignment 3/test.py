@@ -59,12 +59,12 @@ def queue_lengths(events):
     # for bookkeeping the queue sizes
     queue_sizes = { }
 
-    # will conatin lists of tuples of form (time, queue_size)
+    # will contain lists of tuples of form (time, queue_size)
     queues_data = { }
 
     for event in events:
         time = event.time
-        q = None
+        queues = set()
 
         for action in event.executed_actions:
             if not type(action.component) is Q:
@@ -79,17 +79,18 @@ def queue_lengths(events):
             elif action.type == Action.LEAVE:
                 queue_sizes[q] -= 1
 
-        if q != None:
+            if not q in queues:
+                queues.add(q)
+            
+        for q in queues:
             if not q in queues_data:
                 queues_data[q] = []
             queues_data[q].append((time, queue_sizes[q]))
 
     return queues_data
 
-
 data = queue_lengths(events)
 time_stamps, sizes = zip(*data[interview_q])
-
 
 plt.plot(time_stamps, sizes)
 plt.title('Interview queue length against minutes')
