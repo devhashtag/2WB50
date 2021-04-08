@@ -71,7 +71,6 @@ def on_questionnaire_leave(time, action, builder):
 
 system.subscribe(question_room.LEAVE, on_questionnaire_leave)
 
-
 def interview_policy(doctor, time, action, action_builder):
     if interview_q.is_empty():
         return
@@ -101,6 +100,9 @@ doctor1.subscribe(pre_interview_room.ENTER)
 doctor2.subscribe(pre_interview_room.ENTER)
 
 def on_pre_donation_enter(time, action, action_builder):
+    global available_beds_plasma
+    global available_beds_blood
+
     # check if there available beds and if so, occupy them
     if action.donor.type == Donor.PLASMA and available_beds_plasma > 0:
         available_beds_plasma -= 1
@@ -125,9 +127,9 @@ def donation_policy(nurse, time, action, action_builder):
         action_builder.use_donor(donor)
         action_builder.leave(disconnect_q)
 
-        disconnnect_finish = time + dist_disconnect.rvs()
+        disconnect_finish = time + dist_disconnect.rvs()
         action_builder.free_staff_at(disconnect_finish, nurse)
-        action_builder.leave_at(system, disconnnect_finish + dist_recover.rvs())
+        action_builder.leave_at(disconnect_finish + dist_recover.rvs(), system)
         return
 
     if not connect_q.is_empty():
@@ -150,20 +152,32 @@ nurse1.policy = donation_policy
 nurse2.policy = donation_policy
 nurse3.policy = donation_policy
 nurse4.policy = donation_policy
+# Subscribe to all events of interest
 nurse1.subscribe(system.LEAVE)
 nurse2.subscribe(system.LEAVE)
 nurse3.subscribe(system.LEAVE)
 nurse4.subscribe(system.LEAVE)
+nurse1.subscribe(connect_q.ENTER)
+nurse2.subscribe(connect_q.ENTER)
+nurse3.subscribe(connect_q.ENTER)
+nurse4.subscribe(connect_q.ENTER)
+nurse1.subscribe(disconnect_q.ENTER)
+nurse2.subscribe(disconnect_q.ENTER)
+nurse3.subscribe(disconnect_q.ENTER)
+nurse4.subscribe(disconnect_q.ENTER)
 
 def on_donor_leave(time, action, action_builder):
+    global available_beds_plasma
+    global available_beds_blood
+
     # If the donor left because it is not accepted during interview, no bed will become free
     if not action.donor.accepted:
         return
 
     # Check if there is a donor of the same type as the donor that left
-    donor = donation_q.first_of_type(actions.donor.type)
+    donor = donation_q.first_of_type(action.donor.type)
     if donor is None:
-        if actions.donor.type == Donor.PLASMA:
+        if action.donor.type == Donor.PLASMA:
             available_beds_plasma += 1
         else:
             available_beds_blood += 1
@@ -180,7 +194,7 @@ system.subscribe(system.LEAVE, on_donor_leave)
 simulator = Simulator(system)
 
 print('Simulation started...')
-handled_events = simulator.simulate(10000)
+handled_events = simulator.simulate(100000)
 print('Simulation finished')
 
 def print_events(events):
@@ -189,4 +203,4 @@ def print_events(events):
         for action in event.executed_actions:
             print(f'\t{action}')
 
-# print_events(handled_events)
+print_events(handled_events)

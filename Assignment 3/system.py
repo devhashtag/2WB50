@@ -305,7 +305,7 @@ class ActionBuilder:
         action = self.create_action(Action.LEAVE, component, donor, staff_member)
         Event(time, action)
 
-    def free_staff_at(self, time, staff_member)
+    def free_staff_at(self, time, staff_member):
         Event(time, FreeStaffAction(None, None, Action.NOTHING, staff_member))
 
     def create_action(self, type, component=None, donor=None, staff_member=None):
@@ -348,5 +348,5 @@ class Simulator:
         return self.handled_events
 
     def add_arrivals(self):
-        Event(0, Action(self.system, Donor(), Action.ENTER))
-        Event(1, Action(self.system, Donor(), Action.ENTER))
+        self.system.add_arrival(0, Donor())
+        self.system.add_arrival(1, Donor(Donor.PLASMA))
