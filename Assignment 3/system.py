@@ -20,10 +20,12 @@ class Subscription:
         
 '''
 An Action is a donor that enters or leaves a component
+Nothing can be used when a staff-member needs to be freed after a certain time, but there is nothing else to be done
 '''
 class Action:
     ENTER = 0
     LEAVE = 1
+    NOTHING = 2
 
     def __init__(self, component, donor, type):
         self.component = component
@@ -31,6 +33,8 @@ class Action:
         self.type = type
 
     def __str__(self):
+        if self.type == Action.NOTHING:
+            return 'No action performed'
         return f"{self.donor} {'entered' if self.type == Action.ENTER else 'left'} {self.component}"
 
 '''
@@ -48,6 +52,8 @@ class FreeStaffAction(Action):
 An Event is a the basis of the simulation.
 It contains a timestamp and an action to be executed on that timestamp
 An action can cause other actions to execute at the same time instant. We keep track of all actions in executed_actions
+
+NOTE: Instantiating an event immediately puts it on the global event queue.
 '''
 class Event:
     def __init__(self, time, action):
@@ -117,7 +123,7 @@ it just signifies that there is a collection of donors waiting on something
 '''
 class Q(Component):
     def init(self):
-        self.queue = []
+        self.queue = [] #TODO: make this an ordered set (dict without values)
 
     def size(self):
         return len(self.queue)
@@ -128,13 +134,20 @@ class Q(Component):
     def first(self):
         return self.queue[0]
 
+    def first_of_type(self, donor_type):
+        for donor in self.queue:
+            if donor.type == donor_type:
+                return donor
+
     def enter(self, donor):
         super().enter(donor)
         self.queue.append(donor)
+        # print(f'{donor} entered {self}')
 
     def leave(self, donor):
         super().leave(donor)
         self.queue.remove(donor)
+        # print(f'{donor} left {self}')
     
     def __str__(self):
         return f'{self.name} queue'
@@ -143,9 +156,13 @@ class Q(Component):
 A section represents a physical location in the system.
 '''
 class Section(Component):
-    def enter(self, donor): pass
+    def enter(self, donor):
+        # print(f'{donor} entered {self}')
+        pass
     
-    def leave(self, donor): pass
+    def leave(self, donor):
+        # print(f'{donor} left {self}')
+        pass
 
 '''
 A Staff member is either a nurse or a doctor, and they generally help donors that are in a queue.
@@ -169,7 +186,7 @@ class StaffMember:
         # The policy should only run once, so we return as soon as we find a subscription match
         for subscription in self.subscriptions:
             if subscription.is_conform(action):
-                self.policy(self, time, action_builder)
+                self.policy(self, time, action, action_builder)
                 return    
 
     def __str__(self):
@@ -182,21 +199,14 @@ It contains components, but is a component itself as well
 class System(Component):
     def init(self):
         self.staff = []
-        self.components = { } # TODO: This can map (probably) be removed when the code is finished
-        self.subscriptions = [] # A tuple (a,b), where a is a subscription object and b is a function
-        self.add_component(self)
-
-    def add_component(self, component):
-        self.components[component.id] = component
+        self.subscriptions = []
 
     def createQ(self, name):
         q = Q(name)
-        self.add_component(q)
         return q
 
     def createSection(self, name):
         section = Section(name)
-        self.add_component(section)
         return section
 
     def createStaff(self, name):
@@ -207,6 +217,9 @@ class System(Component):
     def subscribe(self, subscription, handler):
         self.subscriptions.append((subscription, handler))
 
+    def add_arrival(self, time, donor):
+        Event(time, Action(self, donor, Action.ENTER))
+
     def execute_action(self, action):
         if isinstance(action, FreeStaffAction):
             action.staff_member.occupied = False
@@ -215,6 +228,8 @@ class System(Component):
             action.component.enter(action.donor)
         elif action.type == Action.LEAVE:
             action.component.leave(action.donor)
+        elif action.type == Action.NOTHING:
+            pass
         else:
             raise RuntimeError(f'Unknown action type: {action.type}')
 
@@ -222,12 +237,12 @@ class System(Component):
         action_queue = [event.action]
         index = 0
 
+        self.execute_action(event.action)
+        execution_index = 1
+
         while index < len(action_queue):
             action = action_queue[index]
             index += 1
-
-            # perform action
-            self.execute_action(action)
 
             # call staff member subscriptions
             for member in self.staff:
@@ -235,14 +250,24 @@ class System(Component):
                 member.handle_action(event.time, action, builder)
                 action_queue.extend(builder.actions)
 
+                # execute all new actions
+                while execution_index < len(action_queue):
+                    self.execute_action(action_queue[execution_index])
+                    execution_index += 1
+
             # call subscriptions
             for subscription, handler in self.subscriptions:
                 if not subscription.is_conform(action):
                     continue
                 
                 builder = ActionBuilder(donor=action.donor)
-                handler(event.time, builder)
+                handler(event.time, action, builder)
                 action_queue.extend(builder.actions)
+
+                # execute all new actions
+                while execution_index < len(action_queue):
+                    self.execute_action(action_queue[execution_index])
+                    execution_index += 1
 
         # store all executed actions in the event that triggered them
         event.executed_actions = action_queue
@@ -280,6 +305,9 @@ class ActionBuilder:
         action = self.create_action(Action.LEAVE, component, donor, staff_member)
         Event(time, action)
 
+    def free_staff_at(self, time, staff_member)
+        Event(time, FreeStaffAction(None, None, Action.NOTHING, staff_member))
+
     def create_action(self, type, component=None, donor=None, staff_member=None):
         component, donor = self.resolve(component, donor)
         action = None
@@ -308,6 +336,7 @@ class Simulator:
         self.handled_events = []
 
     def simulate(self, max_time):
+        EVENT_Q.clear()
         self.add_arrivals()
 
         while not EVENT_Q.is_empty() and self.time < max_time:
@@ -320,4 +349,4 @@ class Simulator:
 
     def add_arrivals(self):
         Event(0, Action(self.system, Donor(), Action.ENTER))
-        Event(10, Action(self.system, Donor(), Action.ENTER))
+        Event(1, Action(self.system, Donor(), Action.ENTER))
