@@ -12,7 +12,7 @@ class NHPP:
         self.exp_dist = expon(scale=1/max_rate)
         self.uni_dist = uniform(0, 1)
 
-    def arrivals(self, start, end):
+    def between(self, start, end):
         arrivals = deque()
         time = start
 

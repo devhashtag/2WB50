@@ -123,7 +123,7 @@ it just signifies that there is a collection of donors waiting on something
 '''
 class Q(Component):
     def init(self):
-        self.queue = [] #TODO: make this an ordered set (dict without values)
+        self.queue = [] #TODO: If simulation is inefficient, make this an ordered set (dict without values)
 
     def size(self):
         return len(self.queue)
@@ -142,12 +142,10 @@ class Q(Component):
     def enter(self, donor):
         super().enter(donor)
         self.queue.append(donor)
-        # print(f'{donor} entered {self}')
 
     def leave(self, donor):
         super().leave(donor)
         self.queue.remove(donor)
-        # print(f'{donor} left {self}')
     
     def __str__(self):
         return f'{self.name} queue'
@@ -157,11 +155,9 @@ A section represents a physical location in the system.
 '''
 class Section(Component):
     def enter(self, donor):
-        # print(f'{donor} entered {self}')
         pass
     
     def leave(self, donor):
-        # print(f'{donor} left {self}')
         pass
 
 '''
@@ -330,10 +326,13 @@ class ActionBuilder:
         if donor is None and self.donor is None:
             raise RuntimeError('A donor was not provided')
 
+'''
+A simulator takes a system object and simulates a system. It will stop when the event queue is empty
+'''
 class Simulator:
     def __init__(self, system):
         self.system = system
-        self.time = 0
+        self.time = 0 # Note: the initial value can actually be anything as events will overwrite it
         self.handled_events = []
 
     def simulate(self):
