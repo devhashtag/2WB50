@@ -1,7 +1,7 @@
 import itertools
 from util import *
 from abc import ABC, abstractmethod
-
+# Global variable is a design choice: give up testability for less clutter (passing it around to objects and such)
 EVENT_Q = FES()
 
 '''
@@ -237,6 +237,8 @@ class System(Component):
         self.execute_action(event.action)
         execution_index = 1
 
+        # All actions that are added to the queue will be executed as soon as possible,
+        # but the actions will be checked one-by-one for subscriptions
         while index < len(action_queue):
             action = action_queue[index]
             index += 1

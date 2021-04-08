@@ -2,24 +2,29 @@ import numpy as np
 from system import *
 from scipy.stats import truncnorm, expon
 
-system = System("Blood collection site")
-registration_line  = system.createSection("Registration line")
-question_room      = system.createSection("Questionnaire room")
-pre_interview_room = system.createSection("Pre-interview room")
-pre_donation_room  = system.createSection("Pre-donation room")
-donation_room      = system.createSection("Donation room")
-registration_q = system.createQ("Registration")
-interview_q    = system.createQ("Pre-interview")
-donation_q     = system.createQ("Donation")
-connect_q      = system.createQ("Connect")
-disconnect_q   = system.createQ("Disconnect")
-receptionist = system.createStaff("Receptionist")
-doctor1      = system.createStaff("Doctor 1")
-doctor2      = system.createStaff("Doctor 2")
-nurse1       = system.createStaff("Nurse 1")
-nurse2       = system.createStaff("Nurse 2")
-nurse3       = system.createStaff("Nurse 3")
-nurse4       = system.createStaff("Nurse 4")
+system = System('Blood collection site')
+registration_line  = system.createSection('Registration line')
+question_room      = system.createSection('Questionnaire room')
+pre_interview_room = system.createSection('Pre-interview room')
+pre_donation_room  = system.createSection('Pre-donation room')
+donation_room      = system.createSection('Donation room')
+registration_q = system.createQ('Registration')
+interview_q    = system.createQ('Pre-interview')
+donation_q     = system.createQ('Donation')
+connect_q      = system.createQ('Connect')
+disconnect_q   = system.createQ('Disconnect')
+receptionist = system.createStaff('Receptionist')
+doctors = [
+    system.createStaff('Doctor 1'),
+    system.createStaff('Doctor 2'),
+    system.createStaff('Doctor 3'),
+]
+nurses = [
+    system.createStaff('Nurse 1'),
+    system.createStaff('Nurse 2'),
+    system.createStaff('Nurse 3'),
+    system.createStaff('Nurse 4')
+]
 
 # Returns the arrival rate per minute of whole blood donors
 def arrival_rate_at(time):
