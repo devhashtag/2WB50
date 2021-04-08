@@ -200,6 +200,7 @@ class System(Component):
     def init(self):
         self.staff = []
         self.subscriptions = []
+        self.arrivals = []
 
     def createQ(self, name):
         q = Q(name)
@@ -218,7 +219,7 @@ class System(Component):
         self.subscriptions.append((subscription, handler))
 
     def add_arrival(self, time, donor):
-        Event(time, Action(self, donor, Action.ENTER))
+        self.arrivals.append((time, Action(self, donor, Action.ENTER)))
 
     def execute_action(self, action):
         if isinstance(action, FreeStaffAction):
@@ -335,18 +336,16 @@ class Simulator:
         self.time = 0
         self.handled_events = []
 
-    def simulate(self, max_time):
+    def simulate(self):
         EVENT_Q.clear()
-        self.add_arrivals()
 
-        while not EVENT_Q.is_empty() and self.time < max_time:
+        for arrival_time, action in self.system.arrivals:
+            Event(arrival_time, action)
+
+        while not EVENT_Q.is_empty():
             event = EVENT_Q.pop()
             self.time = event.time
             self.system.handle_event(event)
             self.handled_events.append(event)
 
         return self.handled_events
-
-    def add_arrivals(self):
-        self.system.add_arrival(0, Donor())
-        self.system.add_arrival(1, Donor(Donor.PLASMA))

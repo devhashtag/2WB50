@@ -55,4 +55,5 @@ class FES:
             raise RuntimeError('The queue is empty')
 
 def to_time(minutes):
-    return f'{minutes // 60}:{minutes % 60}'
+    minutes = round(minutes)
+    return f'{((minutes // 60) % 24):02}:{(minutes % 60):02}'

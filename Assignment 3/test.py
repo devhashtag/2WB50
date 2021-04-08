@@ -1,5 +1,6 @@
 import numpy as np
 from system import *
+from util import *
 from scipy.stats import truncnorm, expon
 
 # Create system
@@ -31,6 +32,9 @@ dist_whole_blood = truncnorm(0, np.infty, 8.5, 0.6)
 dist_plasma = truncnorm(0, np.infty, 45.0, 6.0)
 dist_disconnect = expon(scale=1/2.0)
 dist_recover = expon(scale=1/4.0)
+
+opening_time = 8 * 60
+closing_time = 20 * 60
 
 # Initialize resources
 available_beds_plasma = 7
@@ -187,14 +191,39 @@ def on_donor_leave(time, action, action_builder):
     action_builder.leave(donation_q)
     action_builder.leave(pre_donation_room)
     action_builder.enter(donation_room)
-    action_builder.enter(donation_q)
+    action_builder.enter(connect_q)
 
 system.subscribe(system.LEAVE, on_donor_leave)
 
+# Needed for the NHPP class
+arrival_rate_limit = 13 / 30
+
+def arrival_rate_at(time):
+    time = round(time)
+    if time < opening_time or time > closing_time:
+        raise RuntimeError(f'Time should be between {opening_time} and {closing_time}')
+    
+    time -= opening_time
+    index = 0 if time == 0 else (time-1) // 30
+
+    return [5.76, 5.94, 7.20, 7.56, 8.28, 7.56, 5.94, 5.40, 5.22, 5.76, 6.66, 7.56, 7.74,\
+            6.84, 6.12, 6.30, 6.84, 6.66, 10.44, 8.64, 9.18, 12.24, 12.6, 7.56][index] / 30
+
+def add_arrivals():
+    # add plasma donor arrivals
+    for t in range(opening_time, closing_time - 60, 6):
+        system.add_arrival(t, Donor(Donor.PLASMA))
+    # add whole blood donor arrivals
+    generator = NHPP(arrival_rate_at, arrival_rate_limit)
+    arrival_times = generator.arrivals(opening_time, closing_time)
+    for arrival_time in arrival_times:
+        system.add_arrival(arrival_time, Donor(Donor.WHOLE_BLOOD))
+
+add_arrivals()
 simulator = Simulator(system)
 
 print('Simulation started...')
-handled_events = simulator.simulate(100000)
+handled_events = simulator.simulate()
 print('Simulation finished')
 
 def print_events(events):
@@ -204,3 +233,10 @@ def print_events(events):
             print(f'\t{action}')
 
 print_events(handled_events)
+print(f'Closing time:      {to_time(simulator.time)}')
+print(f'Number of donors:  {Donor.ID()}')
+print(f'Number of events:  {len(handled_events)}')
+print(f'Number of actions: {sum([len(event.executed_actions) for event in handled_events])}')
+
+print('')
+print(f'Donors in the system: {len(system.donors)}')
