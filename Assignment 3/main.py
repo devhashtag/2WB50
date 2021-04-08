@@ -87,10 +87,12 @@ Copy of the code
 '''
 
 # %%
+import heapq
 import itertools
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.stats import truncnorm, expon
+from abc import ABC, abstractmethod
+from scipy.stats import truncnorm, expon, uniform
 from queue import Queue
 from util import *
 from events import *
@@ -139,6 +141,7 @@ class Simulation:
     dist_plasma = truncnorm(0, np.infty, 45.0, 6.0)
     dist_disconnect = expon(scale=1/2.0)
     dist_recover = expon(scale=1/4.0)
+    dist_allowed_to_donate = uniform(0, 1.0)
 
     def __init__(self, interviewers=2, nurses=4, beds_blood=7, beds_plasma=7):
         self.handled_events = []
@@ -165,6 +168,11 @@ class Simulation:
             self.time = next_event
             next_event.handle(self)
             self.handled_events.append(next_event)
+            self.handle_queues()
+
+    def handle_queues(self):
+        #  
+        # 
 
     def generate_arrivals(self):
         self.generate_plasma_arrrivals()
@@ -272,6 +280,176 @@ class Queues:
         return self.disconnect_queue.get()
 
 # %%
+class Event(ABC):
+    def __init__(self, time=None, donor=None):
+        self.time = time
+        self.donor = donor
+        self.FES = None
+
+    def belongs_in(self, fes):
+        if self.FES != None:
+            raise RuntimeError('Event already belongs to an event queue')
+
+        self.FES = fes
+        self.FES.push(self)
+
+    # wanneer kan je dit gebruiken? je kan toch nooit een event zichzelf laten registeren want dan heeft hij toch nog geen FES 
+    # > Dit kun je gebruiken om vanuit een bestaand event een nieuw event te registreren
+    def register(self, event): 
+        event.belongs_in(self.FES)
+
+    @abstractmethod
+    def handle(self, sim):
+        pass
+
+    def __lt__(self, other):
+        return self.time < other.time
+
+    def __str__(self):
+        return f'{self.__class__.__name__} at {to_time(self.time)}'
+
+
+class ArrivalEvent(Event):
+    def handle(self, sim):
+        # put donor in registration queue
+        sim.queues.put_registration_queue(self.donor)
+        # start waiting time
+        self.donor.set_waiting_time(self.time)
+
+
+class CheckinEvent(Event):
+    def handle(self, sim):
+        # set questionaire done time and event
+        done_time = self.time + Simulation.dist_questionnaire.rvs()
+        event = QuestionaireEvent(done_time, self.donor)
+        event.belongs_in(self.FES)
+        # register waiting time and queue length
+        sim.queues.registration_queue_res.registerWaitingTime(self.time - self.donor.waiting_time)
+        sim.queues.registration_queue_res.registerQueueLength(self.time, sim.queues.registration_queue.qsize())
+        pass
+
+
+class QuestionaireEvent(Event):
+    def handle(self, sim):
+        # put donor in interview queue
+        sim.queues.put_interview_waiting_room(self.donor) 
+        # start waiting time
+        self.donor.set_waiting_time(self.time)
+        pass
+
+
+class InterviewStartEvent(Event):
+    def handle(self, sim):
+        # set end interview time and event
+        done_time = self.time + Simulation.dist_interview.rvs()
+        event = InterviewStopEvent(done_time, self.donor)
+        event.belongs_in(self.FES)
+        # register waiting time and queue length
+        wTime = self.time - self.donor.waiting_time
+        if (self.donor.donor_type == Donor.WHOLE_BLOOD):
+            sim.queues.interview_waiting_room_blood_res.registerWaitingTime(wTime)
+            sim.queues.interview_waiting_room_blood_res.registerQueueLength(self.time, sim.queues.interview_waiting_room_blood.qsize())
+        elif (self.donor.donor_type == Donor.PLASMA):
+            sim.queues.interview_waiting_room_plasma_res.registerWaitingTime(wTime) 
+            sim.queues.interview_waiting_room_plasma_res.registerQueueLength(self.time, sim.queues.interview_waiting_room_plasma.qsize())
+        # occupy interviewer
+        sim.occupy_interviewer() # TODO
+        pass
+
+
+class InterviewStopEvent(Event):
+    def handle(self, sim):
+        # determine if donor may donate
+        if (Simulation.dist_allowed_to_donate.rvs() >= 0.05):
+            # put donor in donation waiting queue
+            sim.queues.put_donation_queue(self.donor) 
+            # start waiting time
+            self.donor.set_waiting_time(self.time)
+        # free interviewer
+        sim.free_interviewer() # TODO
+        pass
+
+
+class StartConnectEvent(Event):
+    def handle(self, sim):
+        # set connect end time and event
+        done_time = self.time + Simulation.dist_connect.rvs()
+        event = EndConnectEvent(done_time, self.donor)
+        event.belongs_in(self.FES)
+        # register waiting time and queue length
+        wTime = self.time - self.donor.waiting_time
+        if (self.donor.donor_type == Donor.WHOLE_BLOOD):
+            sim.queues.donation_blood_queue_res.registerWaitingTime(wTime) 
+            sim.queues.donation_blood_queue_res.registerQueueLength(self.time, sim.queues.donation_blood_queue.qsize())
+        elif (self.donor.donor_type == Donor.PLASMA):
+            sim.queues.donation_plasma_queue_res.registerWaitingTime(wTime) 
+            sim.queues.donation_plasma_queue_res.registerQueueLength(self.time, sim.queues.donation_plasma_queue.qsize())
+        # occupy nurse
+        sim.occupy_nurse() 
+        # occupy bed
+        sim.occupy_bed(self.donor.donor_type) 
+        pass
+
+
+class EndConnectEvent(Event):
+    def handle(self, sim):
+        # set ready disconnect time and event
+        if (self.donor.donor_type == Donor.WHOLE_BLOOD):
+            done_time = self.time + Simulation.dist_whole_blood.rvs()
+        elif (self.donor.donor_type == Donor.PLASMA):
+            done_time = self.time + Simulation.dist_plasma.rvs()
+        event = DisconnectReadyEvent(done_time, self.donor)
+        event.belongs_in(self.FES)
+        # free nurse
+        sim.free_nurse() 
+        pass
+
+
+class DisconnectReadyEvent(Event):
+    def handle(self, sim):
+        # put donor in disconnect queue
+        sim.queues.put_disconnect_queue(self.donor) 
+        # start waiting time
+        self.donor.set_waiting_time(self.time)
+        pass
+
+
+class StartDisconnectEvent(Event):
+    def handle(self, sim):
+        # set disconnect end time and event
+        done_time = self.time + Simulation.dist_disconnect.rvs()
+        event = EndDisconnectEvent(done_time, self.donor)
+        event.belongs_in(self.FES)
+        # register waiting time and queue length
+        sim.queues.disconnect_queue_res.registerWaitingTime(wTime)
+        sim.queues.disconnect_queue_res.registerQueueLength(self.time, sim.queues.disconnect_queue.qsize())
+        # occupy nurse
+        sim.occupy_nurse() 
+        pass
+
+
+class EndDisconnectEvent(Event):
+    def handle(self, sim):
+        # set leave time and event
+        done_time = self.time + Simulation.dist_recover.rvs()
+        event = LeaveEvent(done_time, self.donor)
+        event.belongs_in(self.FES)
+        # free nurse
+        sim.free_nurse()
+        pass
+
+
+class LeaveEvent(Event):
+    def handle(self, sim):
+        # register sojourn time
+        sim.results.registerSojournTime(self.donor.get_sojourn_time(self.time))
+        # free bed
+        sim.free_bed(self.donor.donor_type) 
+        pass
+
+# %%
+
+
 class SimResults:
     def __init__(self, n_queues):
         self.queue_results = [QueueResults() for _ in n_queues]
@@ -292,6 +470,8 @@ class QueueResults:
         self.sum_queue_lengths_squared = 0
         self.old_time = 0
         self.queue_length_histogram = zeros(self.MAX_QL + 1)
+        self.queue_lengths = []
+        self.queue_length_times = []
         self.sum_waiting_times = 0
         self.sum_waiting_times_squared = 0
         self.n_waiting_times = 0
@@ -303,6 +483,8 @@ class QueueResults:
         self.queue_length_histogram[min(
             ql, self.MAX_QL)] += (time - self.old_time)
         self.old_time = time
+        self.queue_lengths.append(ql)
+        self.queue_length_times.append(time)
 
     def registerWaitingTime(self, w):
         self.waiting_times.append(w)
@@ -350,3 +532,16 @@ class QueueResults:
         plt.figure()
         plt.hist(self.waiting_times, bins=nrBins, rwidth=0.8, density=True)
         plt.show()
+
+    # def registerCycleTime(self):
+    #     self.queue_at_times.append(self.sum_queue_lengths)
+
+    # def plotQueueLenthPerHour(self):
+    #     plt.figure()
+    #     plt.plot(self.queue_at_times)
+
+
+    #Queue length per hour
+
+
+# %%
