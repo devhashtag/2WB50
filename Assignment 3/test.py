@@ -64,7 +64,7 @@ def queue_lengths(events):
 
     for event in events:
         time = event.time
-        queues = set()
+        q = None
 
         for action in event.executed_actions:
             if not type(action.component) is Q:
@@ -79,19 +79,38 @@ def queue_lengths(events):
             elif action.type == Action.LEAVE:
                 queue_sizes[q] -= 1
 
-            if not q in queues:
-                queues.add(q)
-            
-        for q in queues:
+        if q != None:
             if not q in queues_data:
                 queues_data[q] = []
             queues_data[q].append((time, queue_sizes[q]))
 
     return queues_data
 
-data = queue_lengths(events)
-time_stamps, sizes = zip(*data[interview_q])
 
-plt.plot(time_stamps, sizes)
-plt.title('Interview queue length against minutes')
+data = queue_lengths(events)
+
+plt.figure(figsize=(10,5))
+time_stamps, sizes = zip(*data[registration_q])
+plt.plot(time_stamps, sizes, label='Registration queue')
+# plt.show()
+
+time_stamps, sizes = zip(*data[interview_q])
+plt.plot(time_stamps, sizes, label='Interview queue')
+# plt.show()
+
+time_stamps, sizes = zip(*data[donation_q])
+plt.plot(time_stamps, sizes, label='Donation queue')
+# plt.show()
+
+time_stamps, sizes = zip(*data[connect_q])
+plt.plot(time_stamps, sizes, label='Connect queue')
+# plt.show()
+
+time_stamps, sizes = zip(*data[disconnect_q])
+plt.plot(time_stamps, sizes, label='Disconnect queue')
+
+plt.legend(loc='upper left', bbox_to_anchor=(1.0, 1.0))
+plt.title('Queue lengths during the day')
+plt.xlabel('Time (minutes)')
+plt.ylabel('Queue length')
 plt.show()
