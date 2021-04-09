@@ -27,10 +27,10 @@ class Action:
     LEAVE = 1
     NOTHING = 2
 
-    def __init__(self, component, donor, type):
+    def __init__(self, component, donor, typ):
         self.component = component
         self.donor = donor
-        self.type = type
+        self.type = typ
 
     def __str__(self):
         if self.type == Action.NOTHING:
@@ -75,10 +75,11 @@ class Donor:
     WHOLE_BLOOD = 0
     PLASMA = 1
 
-    def __init__(self, donor_type=WHOLE_BLOOD):
+    def __init__(self, time, donor_type=WHOLE_BLOOD):
         self.id = Donor.ID()
         self.type = donor_type
         self.accepted = True
+        self.arrival_time = time
 
     def __str__(self):
         return f'Donor {self.id}'
