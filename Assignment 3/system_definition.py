@@ -33,7 +33,7 @@ def arrival_rate_at(time):
         raise RuntimeError(f'Time should be between {opening_time} and {closing_time}')
     
     time -= opening_time
-    index = 0 if time == 0 else (time-1) // 30
+    index = 0 if time == 0 else int((time-1) // 30)
 
     return [5.76, 5.94, 7.20, 7.56, 8.28, 7.56, 5.94, 5.40, 5.22, 5.76, 6.66, 7.56, 7.74,\
             6.84, 6.12, 6.30, 6.84, 6.66, 10.44, 8.64, 9.18, 12.24, 12.6, 7.56][index] / 30
