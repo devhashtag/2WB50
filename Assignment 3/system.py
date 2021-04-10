@@ -19,13 +19,17 @@ class Subscription:
         return True
         
 '''
-An Action is a donor that enters or leaves a component
-Nothing can be used when a staff-member needs to be freed after a certain time, but there is nothing else to be done
+Base object for all actions
 '''
-class Action:
+class Action(ABC):
+    pass
+
+'''
+Represents a donor entering or leaving a component
+'''
+class DonorAction(Action):
     ENTER = 0
     LEAVE = 1
-    NOTHING = 2
 
     def __init__(self, component, donor, type):
         self.component = component
@@ -33,20 +37,33 @@ class Action:
         self.type = type
 
     def __str__(self):
-        if self.type == Action.NOTHING:
-            return 'No action performed'
-        return f"{self.donor} {'entered' if self.type == Action.ENTER else 'left'} {self.component}"
+        return f'{self.donor} {'entered' if self.type == DonorAction.ENTER else 'left'} {self.component}'
+'''
+A StaffAction can occupy or release/free a staff member
+'''
+class StaffAction(Action):
+    OCCUPY = 0
+    FREE = 1
 
-'''
-Some actions can free an occupied staff member, that is what this class is for
-'''
-class FreeStaffAction(Action):
-    def __init__(self, component, donor, action, staff_member):
-        super().__init__(component, donor, action)
+    def __init__(self, staff_member, type):
         self.staff_member = staff_member
+        self.type = type
 
     def __str__(self):
-        return super().__str__() + f' and {self.staff_member} is no longer occupied'
+        if self.type == StaffAction.OCCUPY:
+            return f'{self.staff_member} is occupied'
+        return f'{self.staff_member} is no longer occupied'
+
+'''
+A combined actions combines a donor and a staff action as a single action.
+'''
+class CombinedAction(Action):
+    def __init__(self, donor_action, staff_action):
+        self.donor_action = donor_action
+        self.staff_action = staff_action
+
+    def __str__(self):
+        return f'{self.donor_action} and {self.staff_action}'
 
 '''
 An Event is a the basis of the simulation.
@@ -155,10 +172,10 @@ A section represents a physical location in the system.
 '''
 class Section(Component):
     def enter(self, donor):
-        pass
+        super().enter(donor)
     
     def leave(self, donor):
-        pass
+        super().leave(donor)
 
 '''
 A Staff member is either a nurse or a doctor, and they generally help donors that are in a queue.
@@ -190,13 +207,14 @@ class StaffMember:
 
 '''
 The system is a collection of components and staffmembers, with user defined behaviour.
-It contains components, but is a component itself as well
+It contains components, but is a component itself as well (because donors can enter and leave)
 '''
 class System(Component):
     def init(self):
         self.staff = []
         self.subscriptions = []
         self.arrivals = []
+        self.time = 0
 
     def createQ(self, name):
         q = Q(name)
@@ -215,61 +233,92 @@ class System(Component):
         self.subscriptions.append((subscription, handler))
 
     def add_arrival(self, time, donor):
-        self.arrivals.append((time, Action(self, donor, Action.ENTER)))
+        self.arrivals.append((time, DonorAction(self, donor, DonorAction.ENTER)))
 
     def execute_action(self, action):
-        if isinstance(action, FreeStaffAction):
-            action.staff_member.occupied = False
+        if type(action) is CombinedAction:
+            self.execute_action(action.donor_action)
+            self.execute_action(action.staff_action)
+            return
 
-        if action.type == Action.ENTER:
-            action.component.enter(action.donor)
-        elif action.type == Action.LEAVE:
-            action.component.leave(action.donor)
-        elif action.type == Action.NOTHING:
-            pass
-        else:
-            raise RuntimeError(f'Unknown action type: {action.type}')
+        if type(action) is StaffAction:
+            if action.type = StaffAction.OCCUPY:
+                action.staff_member.occupied = True
+            elif action.type = StaffAction.FREE:
+                action.staff_memeber.occupied = False
+            else:
+                raise RuntimeError(f'Unknown StaffAction type: {action.type}')
+            return
+
+        if type(action) is DonorAction:
+            if action.type == DonorAction.ENTER:
+                action.component.enter(action.donor)
+            elif action.type == DonorAction.LEAVE:
+                action.component.leave(action.donor)
+            else:
+                raise RuntimeError(f'Unknown DonorAction type: {action.type}')
+
+    def check_subscriptions(self, action):
+        if type(action) is CombinedAction:
+            yield from self.check_subscriptions(action.donor_action)
+            yield from self.check_subscriptions(action.staff_action)
+            return
+
+        for member in self.staff:
+            builder = ActionBuilder()
+            member.handle_action(self.time, action, action_builder)
+            yield from action_builder.actions
+
+        for subscription, handler in self.subscriptions:
+            if not subscription.is_conform(action):
+                continue
+
+            builder = ActionBuilder()
+
+            if type(action) is DonorAction:
+                builder.use_donor(action.donor)
+            elif type(action) is StaffAction:
+                builder.use_staff(action.staff_member)
+
+            handler(self.time, action, builder)
+            yield from action_builder.actions
 
     def handle_event(self, event):
+        self.time = event.time
+
         action_queue = [event.action]
         index = 0
 
+        # Execute the initial action
         self.execute_action(event.action)
-        execution_index = 1
 
-        # All actions that are added to the queue will be executed as soon as possible,
+        # All actions that are added to the queue will be executed as soon as they are added,
         # but the actions will be checked one-by-one for subscriptions
         while index < len(action_queue):
             action = action_queue[index]
             index += 1
 
-            # call staff member subscriptions
-            for member in self.staff:
-                builder = ActionBuilder(donor=action.donor)
-                member.handle_action(event.time, action, builder)
-                action_queue.extend(builder.actions)
+            response_actions = self.check_subscriptions(action)
+            action_queue.extend(response_actions)
 
-                # execute all new actions
-                while execution_index < len(action_queue):
-                    self.execute_action(action_queue[execution_index])
-                    execution_index += 1
-
-            # call subscriptions
-            for subscription, handler in self.subscriptions:
-                if not subscription.is_conform(action):
-                    continue
-                
-                builder = ActionBuilder(donor=action.donor)
-                handler(event.time, action, builder)
-                action_queue.extend(builder.actions)
-
-                # execute all new actions
-                while execution_index < len(action_queue):
-                    self.execute_action(action_queue[execution_index])
-                    execution_index += 1
+            for response_action in response_actions:
+                self.execute_action(response_action)
 
         # store all executed actions in the event that triggered them
         event.executed_actions = action_queue
+
+
+def test(n):
+    if n > 10:
+        yield from [0,1,2,3,4]
+        yield from [4,4,4,4,4]
+        return
+
+    for i in range(n):
+        yield i
+
+for i in test(11):
+    print(i)
 
 '''
 An ActionBuilder is passed to the user-defined event handlers
@@ -277,56 +326,71 @@ They can either perform an action as a direct response to the event (will be sto
 or enqueue a new event
 '''
 class ActionBuilder:
-    def __init__(self, component=None, donor=None):
+    def __init__(self, component=None, donor=None, staff_member=None):
         self.component = component
         self.donor = donor
+        self.staff_member = staff_member
         self.actions = []
+        self.action_data = { }
 
+    # Use this donor for creating actions
     def use_donor(self, donor):
         self.donor = donor
 
+    # Use this component for creating actions
     def use_component(self, component):
         self.component = component
 
-    def enter(self, component=None, donor=None, staff_member=None):
-        action = self.create_action(Action.ENTER, component, donor, staff_member)
-        self.actions.append(action)
+    # Use this staff member for creating actions
+    def use_staff(self, staff_member):
+        self.staff_member = staff_member
 
-    def leave(self, component=None, donor=None, staff_member=None):
-        action = self.create_action(Action.LEAVE, component, donor, staff_member)
-        self.actions.append(action)
+    def enter(self, component=None, donor=None):
+        component, donor, _ = self.resolve(component, donor)
+        self.action_data['donor_action'] = DonorAction(component, donor)
+        return self
 
-    def enter_at(self, time, component=None, donor=None, staff_member=None):
-        action = self.create_action(Action.ENTER, component, donor, staff_member)
-        Event(time, action)
+    def leave(self, component=None, donor=None):
+        component, donor, _ = self.resolve(component, donor)
+        self.action_data['donor_action'] = DonorAction(component, donor)
+        return self
 
-    def leave_at(self, time, component=None, donor=None, staff_member=None):
-        action = self.create_action(Action.LEAVE, component, donor, staff_member)
-        Event(time, action)
+    def occupy_staff(self, staff_member=None):
+        _, _, staff_member = self.resolve(staff_member=staff_member)
+        self.action_data['staff_action'] = StaffAction(staff_member, StaffAction.OCCUPY)
 
-    def free_staff_at(self, time, staff_member):
-        Event(time, FreeStaffAction(None, None, Action.NOTHING, staff_member))
+    def free_staff(self, staff_member=None):
+        _, _, staff_member = self.resolve(staff_member=staff_member)
+        self.action_data['staff_action'] = StaffAction(staff_member, StaffAction.FREE)
+        return self
 
-    def create_action(self, type, component=None, donor=None, staff_member=None):
-        component, donor = self.resolve(component, donor)
+    def at(self, time):
+        self.action_data['time'] = time
+        return self
+
+    def build(self):
         action = None
 
-        if staff_member is None:
-            action = Action(component, donor, type)
+        if 'donor_action' in self.action_data and 'staff_action' in self.action_data:
+            action = CombinedAction(self.action_data['donor_action'], self.action_data['staff_action'])
+        elif 'donor_action' in self.action_data:
+            action = self.action_data['donor_action']
+        elif 'staff_action' self.action_data:
+            action = self.action_data['staff_action']
         else:
-            action = FreeStaffAction(component, donor, type, staff_member)
+            raise RuntimeError('Cannot build action, because there is no action specified')
 
-        return action
-    
-    def resolve(self, component=None, donor=None):
+        if 'time' in self.action_data:
+            Event(self.action_data['time'], action)
+        else:
+            self.actions.append(action)
+
+    def resolve(self, component=None, donor=None, staff_member=None):
         self.ensure_complete(component, donor)
-        return (self.component if component is None else component, self.donor if donor is None else donor)
-
-    def ensure_complete(self, component=None, donor=None):
-        if component is None and self.component is None:
-            raise RuntimeError('A component was not provided')
-        if donor is None and self.donor is None:
-            raise RuntimeError('A donor was not provided')
+        return (
+            self.component if component is None else component,
+            self.donor if donor is None else donor,
+            self.staff_member if staff_member is None else staff_member)
 
 '''
 A simulator takes a system object and simulates a system. It will stop when the event queue is empty
@@ -339,6 +403,7 @@ class Simulator:
 
     def simulate(self):
         EVENT_Q.clear()
+        self.handled_events = []
 
         for arrival_time, action in self.system.arrivals:
             Event(arrival_time, action)
