@@ -273,10 +273,10 @@ class System(Component):
 
         covered = False
         for member in self.staff:
-            if not covered:
-                builder = ActionBuilder()
-                covered = member.handle_action(self.time, action, builder)
-                yield from builder.actions
+            # if not covered:
+            builder = ActionBuilder()
+            covered = member.handle_action(self.time, action, builder)
+            yield from builder.actions
 
         for subscription, handler in self.subscriptions:
             if not subscription.is_conform(action):
@@ -302,7 +302,7 @@ class System(Component):
         index = 0
 
         # Execute the initial action
-        # self.execute_action(event.action)
+        self.execute_action(event.action)
 
         # All actions that are added to the queue will be executed as soon as they are added,
         # but the actions will be checked one-by-one for subscriptions
@@ -310,18 +310,19 @@ class System(Component):
             action = action_queue[index]
             index += 1
 
-            print(f'before execution of {action}')
-            self.execute_action(action)
+            # print(f'before execution of {action}')
+            # self.execute_action(action)
 
             response_actions = self.check_subscriptions(action)
 
-            # for response_action in response_actions:
-            #     self.execute_action(response_action)
-            action_queue.extend(response_actions)  
+            for response_action in response_actions:
+                self.execute_action(response_action)
+                action_queue.append(response_action)
+            # action_queue.extend(response_actions)  
         
-        print(f'at {self.time} action queue is: ')  
-        [print(action) for action in action_queue]
-        print("")        
+        # print(f'at {self.time} action queue is: ')  
+        # [print(action) for action in action_queue]
+        # print("")        
 
         # store all executed actions in the event that triggered them
         event.executed_actions = action_queue
@@ -391,6 +392,8 @@ class ActionBuilder:
             Event(self.action_data['time'], action)
         else:
             self.actions.append(action)
+
+        self.action_data = { }
 
     def resolve(self, component=None, donor=None, staff_member=None):
         # self.ensure_complete(component, donor)

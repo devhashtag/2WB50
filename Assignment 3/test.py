@@ -58,25 +58,28 @@ def queue_lengths(events):
 
     # will contain lists of tuples of form (time, queue_size)
     queues_data = { }
-
+    
     for event in events:
         time = event.time
-        q = None
+        queues = set()
 
         for action in event.executed_actions:
-            if not type(action.component) is Q:
+            if type(action) != DonorAction or type(action.component) != Q:
                 continue
 
             q = action.component
             if not q in queue_sizes:
                 queue_sizes[q] = 0
 
-            if action.type == Action.ENTER:
+            if action.type == DonorAction.ENTER:
                 queue_sizes[q] += 1
-            elif action.type == Action.LEAVE:
+            elif action.type == DonorAction.LEAVE:
                 queue_sizes[q] -= 1
 
-        if q != None:
+            if not q in queues:
+                queues.add(q)
+
+        for q in queues:
             if not q in queues_data:
                 queues_data[q] = []
             queues_data[q].append((time, queue_sizes[q]))
@@ -309,5 +312,7 @@ def display_staff_occupation(events):
     plt.xlabel('Time (minutes)')
     plt.ylabel('Donors')
     plt.show()
+
+# display_ql_results(events)
 
 # [[print(action) for action in event.executed_actions] for event in events]
