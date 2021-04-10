@@ -180,7 +180,6 @@ def staff_occupation(events):
     return staff_data
 
 
-
 register_handlers()
 add_arrivals()
 events = simulate()
@@ -193,20 +192,10 @@ def display_ql_results(events):
     data = queue_lengths(events)
 
     plt.figure(figsize=(10,5))
-    time_stamps, sizes = zip(*data[registration_q])
-    plt.plot(time_stamps, sizes, label='Registration queue')
 
-    time_stamps, sizes = zip(*data[interview_q])
-    plt.plot(time_stamps, sizes, label='Interview queue')
-
-    time_stamps, sizes = zip(*data[donation_q])
-    plt.plot(time_stamps, sizes, label='Donation queue')
-
-    time_stamps, sizes = zip(*data[connect_q])
-    plt.plot(time_stamps, sizes, label='Connect queue')
-
-    time_stamps, sizes = zip(*data[disconnect_q])
-    plt.plot(time_stamps, sizes, label='Disconnect queue')
+    for queue in data.keys():
+        time_stamps, sizes = zip(*data[queue])
+        plt.plot(time_stamps, sizes, label=f'{queue}')
 
     plt.legend(loc='upper left', bbox_to_anchor=(1.0, 1.0))
     plt.title('Queue lengths during the day')
