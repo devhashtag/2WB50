@@ -21,18 +21,18 @@ def on_questionnaire_leave(time, action, builder):
     builder.enter(pre_interview_room).build()
     builder.enter(interview_q).build()
 
-def registration_policy(nurse, time, action, action_builder):
+def registration_policy(receptionist, time, action, action_builder):
     if registration_q.is_empty():
         return
 
     donor = registration_q.first()
     action_builder.use_donor(donor)
 
-    action_builder.occupy_staff(nurse).build()
+    action_builder.occupy_staff(receptionist).build()
     action_builder.leave(registration_q).build()
     (action_builder
         .leave(registration_line)
-        .free_staff(nurse)
+        .free_staff(receptionist)
         .at(time + dist_registration.rvs())
         .build())
 
