@@ -253,23 +253,12 @@ def display_staff_occupation(events):
     data = staff_occupation(events)
 
     plt.figure(figsize=(10,5))
-    time_stamps, sizes = zip(*data['Receptionist'])
-    print(f'Receptionist availability mean: {np.mean(sizes)}')
-    print(f'normal mean: {np.mean(sizes)}')
-    print(f'weighted mean: {get_mean(time_stamps, sizes)}')
-    plt.plot(time_stamps, sizes, label='Receptionist')
-
-    time_stamps, sizes = zip(*data['Doctor'])
-    print(f'Doctor availability mean: {np.mean(sizes)}')
-    print(f'normal mean: {np.mean(sizes)}')
-    print(f'weighted mean: {get_mean(time_stamps, sizes)}')
-    plt.plot(time_stamps, sizes, label='Doctors')
-
-    time_stamps, sizes = zip(*data['Nurse'])
-    print(f'Nurse availability mean: {np.mean(sizes)}')
-    print(f'normal mean: {np.mean(sizes)}')
-    print(f'weighted mean: {get_mean(time_stamps, sizes)}')
-    plt.plot(time_stamps, sizes, label='Nurses')
+    for staff_member in data.keys():
+        time_stamps, sizes = zip(*data[staff_member])
+        print(f'Receptionist availability mean: {np.mean(sizes)}')
+        print(f'normal mean: {np.mean(sizes)}')
+        print(f'weighted mean: {get_mean(time_stamps, sizes)}')
+        plt.plot(time_stamps, sizes, label=f'{staff_member}')
 
     plt.legend(loc='upper left', bbox_to_anchor=(1.0, 1.0))
     plt.title('Staff occupation during the day')
@@ -277,6 +266,7 @@ def display_staff_occupation(events):
     plt.ylabel('Donors')
     plt.show()
 
-display_average_number_donors(events)
+# display_average_number_donors(events)
+display_staff_occupation(events)
 
 # [[print(action) for action in event.executed_actions] for event in events]
