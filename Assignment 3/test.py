@@ -202,6 +202,48 @@ def staff_occupation(events):
 
     return staff_data
 
+def bed_occupation(events):
+        # for saving the average number of donors per section
+    bed_occupation = { 
+        'Whole blood': 0,
+        'Plasma': 0
+    }
+
+    # will contain lists of tuples of form (time, queue_size)
+    bed_data = { }
+
+    for event in events:
+        time = event.time
+        bed_type = None
+
+        for action in event.executed_actions:
+            if type(action) is CombinedAction:
+                action = action.donor_action
+
+            if not type(action) is DonorAction:
+                continue
+            
+            if not action.component == donation_room:
+                continue
+
+            if action.donor.type == Donor.WHOLE_BLOOD:
+                bed_type = 'Whole blood'
+            elif action.donor.type == Donor.PLASMA:
+                bed_type = 'Plasma'
+
+            if action.type is DonorAction.ENTER:
+                bed_occupation[bed_type] += 1
+            else:
+                bed_occupation[bed_type] -= 1
+
+        if bed_type != None:
+            if not bed_type in bed_data:
+                bed_data[bed_type] = []
+            bed_data[bed_type].append((time, bed_occupation[bed_type]))
+
+    return bed_data
+
+
 register_handlers()
 add_arrivals()
 events = simulate()
@@ -306,6 +348,28 @@ def display_staff_occupation(events):
     plt.ylabel('Donors')
     plt.show()
 
-display_average_number_donors(events)
+def display_bed_occupation(events):
+    data = bed_occupation(events)
+
+    plt.figure(figsize=(10,5))
+    time_stamps, sizes = zip(*data['Whole blood'])
+    print(f'Whole blood beds available mean: {np.mean(sizes)}')
+    print(f'normal mean: {np.mean(sizes)}')
+    print(f'weighted mean: {get_mean(time_stamps, sizes)}')
+    plt.plot(time_stamps, sizes, label='Whole blood')
+
+    time_stamps, sizes = zip(*data['Plasma'])
+    print(f'Plasma beds availabile mean: {np.mean(sizes)}')
+    print(f'normal mean: {np.mean(sizes)}')
+    print(f'weighted mean: {get_mean(time_stamps, sizes)}')
+    plt.plot(time_stamps, sizes, label='Plasma')
+
+    plt.legend(loc='upper left', bbox_to_anchor=(1.0, 1.0))
+    plt.title('Bed occupation during the day')
+    plt.xlabel('Time (minutes)')
+    plt.ylabel('Donors')
+    plt.show()
+
+display_st_results(events)
 
 # [[print(action) for action in event.executed_actions] for event in events]
