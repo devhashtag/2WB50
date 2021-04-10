@@ -77,6 +77,9 @@ def on_donor_leave(time, action, action_builder):
     action_builder.enter(donation_room).build()
     action_builder.enter(connect_q).build()
 
+def on_donation_room_leave(time, action, action_builder):
+    action_builder.leave(system).build()
+
 # Policies
 def interview_policy(doctor, time, action, action_builder):
     if interview_q.is_empty():
