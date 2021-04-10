@@ -29,11 +29,11 @@ def register_handlers():
 def add_arrivals():
     # add plasma donor arrivals
     for t in range(opening_time, closing_time - 60, 6):
-        system.add_arrival(t, Donor(Donor.PLASMA))
+        system.add_arrival(t, Donor(t, Donor.PLASMA))
     # add whole blood donor arrivals
     arrival_times = dist_arrivals.between(opening_time, closing_time)
     for arrival_time in arrival_times:
-        system.add_arrival(arrival_time, Donor(Donor.WHOLE_BLOOD))
+        system.add_arrival(arrival_time, Donor(arrival_time, Donor.WHOLE_BLOOD))
 
 def simulate():
     simulator = Simulator(system)
@@ -51,9 +51,6 @@ def simulate():
     print(f'Donors in the system: {len(system.donors)}')
     return handled_events
 
-register_handlers()
-add_arrivals()
-events = simulate()
 
 def queue_lengths(events):
     # for bookkeeping the queue sizes
@@ -64,7 +61,7 @@ def queue_lengths(events):
 
     for event in events:
         time = event.time
-        queues = set()
+        q = None
 
         for action in event.executed_actions:
             if not type(action.component) is Q:
@@ -79,19 +76,192 @@ def queue_lengths(events):
             elif action.type == Action.LEAVE:
                 queue_sizes[q] -= 1
 
-            if not q in queues:
-                queues.add(q)
-            
-        for q in queues:
+        if q != None:
             if not q in queues_data:
                 queues_data[q] = []
             queues_data[q].append((time, queue_sizes[q]))
 
     return queues_data
 
-data = queue_lengths(events)
-time_stamps, sizes = zip(*data[interview_q])
+def sojourn_times(events): 
+    # for saving the sojourn times
+    st_blood = []
+    st_plasma = []
 
-plt.plot(time_stamps, sizes)
-plt.title('Interview queue length against minutes')
-plt.show()
+    # cycle through all events to find donors leaving the system
+    for event in events:
+        time = event.time
+        for action in event.executed_actions:
+            if not (action.type == Action.LEAVE and type(action.component) is System):
+                continue
+            
+            donor = action.donor
+            sojourn_time = time - donor.arrival_time
+            if donor.type == Donor.WHOLE_BLOOD:
+                st_blood.append(sojourn_time)
+            elif donor.type == Donor.PLASMA:
+                st_plasma.append(sojourn_time)
+
+    return st_blood, st_plasma
+
+def section_donors(events):
+    # for saving the average number of donors per section
+    sec_occupants = { }
+    sec_occupants['total'] = 0
+
+    # will contain lists of tuples of form (time, queue_size)
+    sec_data = { }
+    sec_data['total'] = []
+
+    for event in events:
+        time = event.time
+        sec = None
+
+        for action in event.executed_actions:
+            if not type(action.component) is Section:
+                continue
+
+            sec = action.component
+            if not sec in sec_occupants:
+                sec_occupants[sec] = 0
+
+            if action.type == Action.ENTER:
+                sec_occupants[sec] += 1
+                sec_occupants['total'] += 1
+            elif action.type == Action.LEAVE:
+                sec_occupants[sec] -= 1
+                sec_occupants['total'] -= 1
+
+        if sec != None:
+            if not sec in sec_data:
+                sec_data[sec] = []
+            sec_data[sec].append((time, sec_occupants[sec]))
+            sec_data['total'].append((time, sec_occupants['total']))
+
+    return sec_data
+
+def staff_occupation(events):
+        # for saving the average number of donors per section
+    sec_occupants = { }
+    sec_occupants['total'] = 0
+
+    # will contain lists of tuples of form (time, queue_size)
+    sec_data = { }
+    sec_data['total'] = []
+
+    for event in events:
+        time = event.time
+        sec = None
+
+        for action in event.executed_actions:
+            if not type(action) is FreeStaffAction:
+                continue
+
+            sec = action.component
+            if not sec in sec_occupants:
+                sec_occupants[sec] = 0
+
+            if action.type == Action.ENTER:
+                sec_occupants[sec] += 1
+                sec_occupants['total'] += 1
+            elif action.type == Action.LEAVE:
+                sec_occupants[sec] -= 1
+                sec_occupants['total'] -= 1
+
+        if sec != None:
+            if not sec in sec_data:
+                sec_data[sec] = []
+            sec_data[sec].append((time, sec_occupants[sec]))
+            sec_data['total'].append((time, sec_occupants['total']))
+
+    return sec_data
+
+
+
+register_handlers()
+add_arrivals()
+events = simulate()
+
+def get_mean(times, amounts):
+    weighted_amounts = [ amounts[i] * (times[i+1] - times[i]) for i in range(len(times)-1)]
+    return np.sum(weighted_amounts)/times[-1]
+
+def display_ql_results(events):
+    data = queue_lengths(events)
+
+    plt.figure(figsize=(10,5))
+    time_stamps, sizes = zip(*data[registration_q])
+    plt.plot(time_stamps, sizes, label='Registration queue')
+
+    time_stamps, sizes = zip(*data[interview_q])
+    plt.plot(time_stamps, sizes, label='Interview queue')
+
+    time_stamps, sizes = zip(*data[donation_q])
+    plt.plot(time_stamps, sizes, label='Donation queue')
+
+    time_stamps, sizes = zip(*data[connect_q])
+    plt.plot(time_stamps, sizes, label='Connect queue')
+
+    time_stamps, sizes = zip(*data[disconnect_q])
+    plt.plot(time_stamps, sizes, label='Disconnect queue')
+
+    plt.legend(loc='upper left', bbox_to_anchor=(1.0, 1.0))
+    plt.title('Queue lengths during the day')
+    plt.xlabel('Time (minutes)')
+    plt.ylabel('Queue length')
+    plt.show()
+
+def display_st_results(events):
+    st_blood, st_plasma = sojourn_times(events)
+    print(f'Mean whole blood st: {np.mean(st_blood)}')
+    print(f'Mean plasma st: {np.mean(st_plasma)}')
+
+    # confidence intervals
+
+def display_average_number_donors(events):
+    data = section_donors(events)
+
+    plt.figure(figsize=(10,5))
+    time_stamps, sizes = zip(*data[registration_line])
+    print(f'Registration line mean: {np.mean(sizes)}')
+    print(f'normal mean: {np.mean(sizes)}')
+    print(f'weighted mean: {get_mean(time_stamps, sizes)}')
+    plt.plot(time_stamps, sizes, label='Registration line')
+
+    time_stamps, sizes = zip(*data[question_room])
+    print(f'Questionnaire room mean: {np.mean(sizes)}')
+    print(f'normal mean: {np.mean(sizes)}')
+    print(f'weighted mean: {get_mean(time_stamps, sizes)}')
+    plt.plot(time_stamps, sizes, label='Questionnaire room')
+
+    time_stamps, sizes = zip(*data[pre_interview_room])
+    print(f'Pre-interview room mean: {np.mean(sizes)}')
+    print(f'normal mean: {np.mean(sizes)}')
+    print(f'weighted mean: {get_mean(time_stamps, sizes)}')
+    plt.plot(time_stamps, sizes, label='Pre-interview room')
+
+    time_stamps, sizes = zip(*data[pre_donation_room])
+    print(f'Pre-donation room mean: {np.mean(sizes)}')
+    print(f'normal mean: {np.mean(sizes)}')
+    print(f'weighted mean: {get_mean(time_stamps, sizes)}')
+    plt.plot(time_stamps, sizes, label='Pre-donation room')
+
+    time_stamps, sizes = zip(*data[donation_room])
+    print(f'Donation room mean: {get_mean(time_stamps, sizes)}')
+    print(f'normal mean: {np.mean(sizes)}')
+    print(f'weighted mean: {get_mean(time_stamps, sizes)}')
+    plt.plot(time_stamps, sizes, label='Donation room')
+
+    time_stamps, sizes = zip(*data['total'])
+    print(f'Total donors mean: {np.mean(sizes)}')
+    print(f'normal mean: {np.mean(sizes)}')
+    print(f'weighted mean: {get_mean(time_stamps, sizes)}')
+    plt.plot(time_stamps, sizes, label='Total')
+
+    plt.legend(loc='upper left', bbox_to_anchor=(1.0, 1.0))
+    plt.title('Donors in each section during the day')
+    plt.xlabel('Time (minutes)')
+    plt.ylabel('Donors')
+    plt.show()
+
+display_average_number_donors(events)
