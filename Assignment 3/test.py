@@ -278,41 +278,12 @@ def display_average_number_donors(events):
     data = section_donors(events)
 
     plt.figure(figsize=(10,5))
-    time_stamps, sizes = zip(*data[registration_line])
-    print(f'Registration line mean: {np.mean(sizes)}')
-    print(f'normal mean: {np.mean(sizes)}')
-    print(f'weighted mean: {get_mean(time_stamps, sizes)}')
-    plt.plot(time_stamps, sizes, label='Registration line')
-
-    time_stamps, sizes = zip(*data[question_room])
-    print(f'Questionnaire room mean: {np.mean(sizes)}')
-    print(f'normal mean: {np.mean(sizes)}')
-    print(f'weighted mean: {get_mean(time_stamps, sizes)}')
-    plt.plot(time_stamps, sizes, label='Questionnaire room')
-
-    time_stamps, sizes = zip(*data[pre_interview_room])
-    print(f'Pre-interview room mean: {np.mean(sizes)}')
-    print(f'normal mean: {np.mean(sizes)}')
-    print(f'weighted mean: {get_mean(time_stamps, sizes)}')
-    plt.plot(time_stamps, sizes, label='Pre-interview room')
-
-    time_stamps, sizes = zip(*data[pre_donation_room])
-    print(f'Pre-donation room mean: {np.mean(sizes)}')
-    print(f'normal mean: {np.mean(sizes)}')
-    print(f'weighted mean: {get_mean(time_stamps, sizes)}')
-    plt.plot(time_stamps, sizes, label='Pre-donation room')
-
-    time_stamps, sizes = zip(*data[donation_room])
-    print(f'Donation room mean: {get_mean(time_stamps, sizes)}')
-    print(f'normal mean: {np.mean(sizes)}')
-    print(f'weighted mean: {get_mean(time_stamps, sizes)}') 
-    plt.plot(time_stamps, sizes, label='Donation room')
-
-    time_stamps, sizes = zip(*data['total'])
-    print(f'Total donors mean: {np.mean(sizes)}')
-    print(f'normal mean: {np.mean(sizes)}')
-    print(f'weighted mean: {get_mean(time_stamps, sizes)}')
-    plt.plot(time_stamps, sizes, label='Total')
+    for section in data.keys():
+        time_stamps, sizes = zip(*data[section])
+        print(f'Registration line mean: {np.mean(sizes)}')
+        print(f'normal mean: {np.mean(sizes)}')
+        print(f'weighted mean: {get_mean(time_stamps, sizes)}')
+        plt.plot(time_stamps, sizes, label=f'{section}')
 
     plt.legend(loc='upper left', bbox_to_anchor=(1.0, 1.0))
     plt.title('Donors in each section during the day')
@@ -324,23 +295,12 @@ def display_staff_occupation(events):
     data = staff_occupation(events)
 
     plt.figure(figsize=(10,5))
-    time_stamps, sizes = zip(*data['Receptionist'])
-    print(f'Receptionist availability mean: {np.mean(sizes)}')
-    print(f'normal mean: {np.mean(sizes)}')
-    print(f'weighted mean: {get_mean(time_stamps, sizes)}')
-    plt.plot(time_stamps, sizes, label='Receptionist')
-
-    time_stamps, sizes = zip(*data['Doctor'])
-    print(f'Doctor availability mean: {np.mean(sizes)}')
-    print(f'normal mean: {np.mean(sizes)}')
-    print(f'weighted mean: {get_mean(time_stamps, sizes)}')
-    plt.plot(time_stamps, sizes, label='Doctors')
-
-    time_stamps, sizes = zip(*data['Nurse'])
-    print(f'Nurse availability mean: {np.mean(sizes)}')
-    print(f'normal mean: {np.mean(sizes)}')
-    print(f'weighted mean: {get_mean(time_stamps, sizes)}')
-    plt.plot(time_stamps, sizes, label='Nurses')
+    for staff_member in data.keys():
+        time_stamps, sizes = zip(*data[staff_member])
+        print(f'Receptionist availability mean: {np.mean(sizes)}')
+        print(f'normal mean: {np.mean(sizes)}')
+        print(f'weighted mean: {get_mean(time_stamps, sizes)}')
+        plt.plot(time_stamps, sizes, label=f'{staff_member}')
 
     plt.legend(loc='upper left', bbox_to_anchor=(1.0, 1.0))
     plt.title('Staff occupation during the day')
