@@ -162,9 +162,10 @@ class Q(Component):
     def enter(self, donor):
         super().enter(donor)
         self.queue.append(donor)
-        print(f'{donor} added to {self}, length: {len(self.queue)}')
+        # print(f'{donor} added to {self}, length: {len(self.queue)}')
 
     def leave(self, donor):
+        # print(f'remove {donor} from {self}')
         super().leave(donor)
         self.queue.remove(donor)
     
@@ -199,13 +200,13 @@ class StaffMember:
 
     def handle_action(self, time, action, action_builder):
         if self.occupied:
-            return
+            return False
 
         # The policy should only run once, so we return as soon as we find a subscription match
         for subscription in self.subscriptions:
             if subscription.is_conform(action):
                 self.policy(self, time, action, action_builder)
-                return    
+                return True   
 
     def __str__(self):
         return self.name
@@ -270,10 +271,12 @@ class System(Component):
             yield from self.check_subscriptions(action.staff_action)
             return
 
+        covered = False
         for member in self.staff:
-            builder = ActionBuilder()
-            member.handle_action(self.time, action, builder)
-            yield from builder.actions
+            if not covered:
+                builder = ActionBuilder()
+                covered = member.handle_action(self.time, action, builder)
+                yield from builder.actions
 
         for subscription, handler in self.subscriptions:
             if not subscription.is_conform(action):
@@ -299,7 +302,7 @@ class System(Component):
         index = 0
 
         # Execute the initial action
-        self.execute_action(event.action)
+        # self.execute_action(event.action)
 
         # All actions that are added to the queue will be executed as soon as they are added,
         # but the actions will be checked one-by-one for subscriptions
@@ -307,27 +310,21 @@ class System(Component):
             action = action_queue[index]
             index += 1
 
+            print(f'before execution of {action}')
+            self.execute_action(action)
+
             response_actions = self.check_subscriptions(action)
 
-            for response_action in response_actions:
-                self.execute_action(response_action)
-                action_queue.append(response_action)            
+            # for response_action in response_actions:
+            #     self.execute_action(response_action)
+            action_queue.extend(response_actions)  
+        
+        print(f'at {self.time} action queue is: ')  
+        [print(action) for action in action_queue]
+        print("")        
 
         # store all executed actions in the event that triggered them
         event.executed_actions = action_queue
-
-
-def test(n):
-    if n > 10:
-        yield from [0,1,2,3,4]
-        yield from [4,4,4,4,4]
-        return
-
-    for i in range(n):
-        yield i
-
-for i in test(11):
-    print(i)
 
 '''
 An ActionBuilder is passed to the user-defined event handlers

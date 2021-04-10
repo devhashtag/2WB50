@@ -18,6 +18,7 @@ def on_registration_leave(time, action, builder):
     builder.leave(question_room).at(time + dist_questionnaire.rvs()).build()
 
 def on_questionnaire_leave(time, action, builder):
+    print(f'{action.donor} enters pre_interview_room')
     builder.enter(pre_interview_room).build()
     builder.enter(interview_q).build()
 
