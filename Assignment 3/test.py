@@ -19,7 +19,7 @@ def register_handlers():
 
     for doctor in doctors:
         doctor.policy = interview_policy
-        doctor.subscribe(pre_interview_room.ENTER)
+        doctor.subscribe(interview_q.ENTER)
 
     for nurse in nurses:
         nurse.policy = donation_policy
@@ -141,40 +141,51 @@ def section_donors(events):
     return sec_data
 
 def staff_occupation(events):
-        # for saving the average number of donors per section
-    sec_occupants = { }
-    sec_occupants['total'] = 0
+    # for saving the average number of donors per section
+    staff_occupation = { 
+        'Receptionist': 1,
+        'Doctor': len(doctors),
+        'Nurse': len(nurses)
+    }
+    # staff_occupation['total'] = 0
 
     # will contain lists of tuples of form (time, queue_size)
-    sec_data = { }
-    sec_data['total'] = []
+    staff_data = { }
+    # staff_data['total'] = []
 
     for event in events:
         time = event.time
-        sec = None
+        staff = None
 
         for action in event.executed_actions:
-            if not type(action) is FreeStaffAction:
+            if not (type(action) is FreeStaffAction or (type(action.component) is Q and action.type is Action.ENTER)):
                 continue
 
-            sec = action.component
-            if not sec in sec_occupants:
-                sec_occupants[sec] = 0
+            if not type(action) is FreeStaffAction:
+                if action.component is registration_q:
+                    staff = "Receptionist"
+                elif action.component is interview_q:
+                    staff = "Doctor"
+                elif action.component is connect_q or action.component is disconnect_q:
+                    staff = "Nurse"
+                else:
+                    continue
+            else:
+                staff_name = action.staff_member.__str__()
+                staff = staff_name[0:staff_name.find(" ")]
 
-            if action.type == Action.ENTER:
-                sec_occupants[sec] += 1
-                sec_occupants['total'] += 1
-            elif action.type == Action.LEAVE:
-                sec_occupants[sec] -= 1
-                sec_occupants['total'] -= 1
+            if type(action) is FreeStaffAction:
+                staff_occupation[staff] += 1
+            else:
+                staff_occupation[staff] -= 1
 
-        if sec != None:
-            if not sec in sec_data:
-                sec_data[sec] = []
-            sec_data[sec].append((time, sec_occupants[sec]))
-            sec_data['total'].append((time, sec_occupants['total']))
+        if staff != None:
+            if not staff in staff_data:
+                staff_data[staff] = []
+            staff_data[staff].append((time, staff_occupation[staff]))
+            # staff_data['total'].append((time, staff_occupation['total']))
 
-    return sec_data
+    return staff_data
 
 
 
@@ -264,4 +275,4 @@ def display_average_number_donors(events):
     plt.ylabel('Donors')
     plt.show()
 
-display_average_number_donors(events)
+staff_occupation(events)

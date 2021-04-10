@@ -13,7 +13,7 @@ interview_q    = system.createQ('Pre-interview')
 donation_q     = system.createQ('Donation')
 connect_q      = system.createQ('Connect')
 disconnect_q   = system.createQ('Disconnect')
-receptionist = system.createStaff('Receptionist')
+receptionist = system.createStaff('Receptionist 1')
 doctors = [
     system.createStaff('Doctor 1'),
     system.createStaff('Doctor 2'),
