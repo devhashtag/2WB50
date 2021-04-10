@@ -12,6 +12,7 @@ def register_handlers():
     system.subscribe(registration_line.LEAVE, on_registration_leave)
     system.subscribe(question_room.LEAVE, on_questionnaire_leave)
     system.subscribe(pre_donation_room.ENTER, on_pre_donation_enter)
+    system.subscribe(donation_room.LEAVE, on_donation_room_leave)
     system.subscribe(system.LEAVE, on_donor_leave)
 
     receptionist.policy = registration_policy
@@ -29,7 +30,8 @@ def register_handlers():
 def add_arrivals():
     # add plasma donor arrivals
     for t in range(opening_time, closing_time - 60, 6):
-        system.add_arrival(t, Donor(t, Donor.PLASMA))
+        if np.random.random() <= 0.85:
+            system.add_arrival(t, Donor(t, Donor.PLASMA))
     # add whole blood donor arrivals
     arrival_times = dist_arrivals.between(opening_time, closing_time)
     for arrival_time in arrival_times:
