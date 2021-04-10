@@ -37,7 +37,8 @@ class DonorAction(Action):
         self.type = typ
 
     def __str__(self):
-        return f'{self.donor} {'entered' if self.type == DonorAction.ENTER else 'left'} {self.component}'
+        return f'{self.donor} {"entered" if self.type == DonorAction.ENTER else "left"} {self.component}'
+
 '''
 A StaffAction can occupy or release/free a staff member
 '''
@@ -45,9 +46,9 @@ class StaffAction(Action):
     OCCUPY = 0
     FREE = 1
 
-    def __init__(self, staff_member, type):
+    def __init__(self, staff_member, typ):
         self.staff_member = staff_member
-        self.type = type
+        self.type = typ
 
     def __str__(self):
         if self.type == StaffAction.OCCUPY:
@@ -126,11 +127,11 @@ class Component(ABC):
 
     @property
     def ENTER(self):
-        return Subscription({'component': self, 'type': Action.ENTER})
+        return Subscription({'component': self, 'type': DonorAction.ENTER})
 
     @property
     def LEAVE(self):
-        return Subscription({'component': self, 'type': Action.LEAVE})
+        return Subscription({'component': self, 'type': DonorAction.LEAVE})
 
     def __str__(self):
         return self.name
@@ -183,8 +184,9 @@ A Staff member is either a nurse or a doctor, and they generally help donors tha
 A Staff member can be activated on specific actions, or when they are freed (= no longer occupied)
 '''
 class StaffMember:
-    def __init__(self, name):
+    def __init__(self, job, name):
         self.name = name
+        self.job = job
         self.occupied = False
         self.subscriptions = []
         self.policy = lambda x: x
@@ -225,8 +227,8 @@ class System(Component):
         section = Section(name)
         return section
 
-    def createStaff(self, name):
-        member = StaffMember(name)
+    def createStaff(self, job, name):
+        member = StaffMember(job, name)
         self.staff.append(member)
         return member
 
@@ -243,9 +245,9 @@ class System(Component):
             return
 
         if type(action) is StaffAction:
-            if action.type = StaffAction.OCCUPY:
+            if action.type == StaffAction.OCCUPY:
                 action.staff_member.occupied = True
-            elif action.type = StaffAction.FREE:
+            elif action.type == StaffAction.FREE:
                 action.staff_memeber.occupied = False
             else:
                 raise RuntimeError(f'Unknown StaffAction type: {action.type}')
@@ -267,8 +269,8 @@ class System(Component):
 
         for member in self.staff:
             builder = ActionBuilder()
-            member.handle_action(self.time, action, action_builder)
-            yield from action_builder.actions
+            member.handle_action(self.time, action, builder)
+            yield from builder.actions
 
         for subscription, handler in self.subscriptions:
             if not subscription.is_conform(action):
@@ -282,7 +284,7 @@ class System(Component):
                 builder.use_staff(action.staff_member)
 
             handler(self.time, action, builder)
-            yield from action_builder.actions
+            yield from builder.actions
 
     def handle_event(self, event):
         self.time = event.time
@@ -348,12 +350,12 @@ class ActionBuilder:
 
     def enter(self, component=None, donor=None):
         component, donor, _ = self.resolve(component, donor)
-        self.action_data['donor_action'] = DonorAction(component, donor)
+        self.action_data['donor_action'] = DonorAction(component, donor, DonorAction.ENTER)
         return self
 
     def leave(self, component=None, donor=None):
         component, donor, _ = self.resolve(component, donor)
-        self.action_data['donor_action'] = DonorAction(component, donor)
+        self.action_data['donor_action'] = DonorAction(component, donor, DonorAction.LEAVE)
         return self
 
     def occupy_staff(self, staff_member=None):
@@ -376,7 +378,7 @@ class ActionBuilder:
             action = CombinedAction(self.action_data['donor_action'], self.action_data['staff_action'])
         elif 'donor_action' in self.action_data:
             action = self.action_data['donor_action']
-        elif 'staff_action' self.action_data:
+        elif 'staff_action' in self.action_data:
             action = self.action_data['staff_action']
         else:
             raise RuntimeError('Cannot build action, because there is no action specified')
@@ -387,7 +389,7 @@ class ActionBuilder:
             self.actions.append(action)
 
     def resolve(self, component=None, donor=None, staff_member=None):
-        self.ensure_complete(component, donor)
+        # self.ensure_complete(component, donor)
         return (
             self.component if component is None else component,
             self.donor if donor is None else donor,

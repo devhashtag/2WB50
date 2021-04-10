@@ -158,23 +158,12 @@ def staff_occupation(events):
         staff = None
 
         for action in event.executed_actions:
-            if not (type(action) is FreeStaffAction or (type(action.component) is Q and action.type is Action.ENTER)):
+            if not type(action) is StaffAction:
                 continue
 
-            if not type(action) is FreeStaffAction:
-                if action.component is registration_q:
-                    staff = "Receptionist"
-                elif action.component is interview_q:
-                    staff = "Doctor"
-                elif action.component is connect_q or action.component is disconnect_q:
-                    staff = "Nurse"
-                else:
-                    continue
-            else:
-                staff_name = action.staff_member.__str__()
-                staff = staff_name[0:staff_name.find(" ")]
+            staff = action.staff_member.job
 
-            if type(action) is FreeStaffAction:
+            if action.type is StaffAction.FREE:
                 staff_occupation[staff] += 1
             else:
                 staff_occupation[staff] -= 1
@@ -275,4 +264,48 @@ def display_average_number_donors(events):
     plt.ylabel('Donors')
     plt.show()
 
-staff_occupation(events)
+def display_staff_occupation(events):
+    data = staff_occupation(events)
+
+    plt.figure(figsize=(10,5))
+    time_stamps, sizes = zip(*data[registration_line])
+    print(f'Registration line mean: {np.mean(sizes)}')
+    print(f'normal mean: {np.mean(sizes)}')
+    print(f'weighted mean: {get_mean(time_stamps, sizes)}')
+    plt.plot(time_stamps, sizes, label='Registration line')
+
+    time_stamps, sizes = zip(*data[question_room])
+    print(f'Questionnaire room mean: {np.mean(sizes)}')
+    print(f'normal mean: {np.mean(sizes)}')
+    print(f'weighted mean: {get_mean(time_stamps, sizes)}')
+    plt.plot(time_stamps, sizes, label='Questionnaire room')
+
+    time_stamps, sizes = zip(*data[pre_interview_room])
+    print(f'Pre-interview room mean: {np.mean(sizes)}')
+    print(f'normal mean: {np.mean(sizes)}')
+    print(f'weighted mean: {get_mean(time_stamps, sizes)}')
+    plt.plot(time_stamps, sizes, label='Pre-interview room')
+
+    time_stamps, sizes = zip(*data[pre_donation_room])
+    print(f'Pre-donation room mean: {np.mean(sizes)}')
+    print(f'normal mean: {np.mean(sizes)}')
+    print(f'weighted mean: {get_mean(time_stamps, sizes)}')
+    plt.plot(time_stamps, sizes, label='Pre-donation room')
+
+    time_stamps, sizes = zip(*data[donation_room])
+    print(f'Donation room mean: {get_mean(time_stamps, sizes)}')
+    print(f'normal mean: {np.mean(sizes)}')
+    print(f'weighted mean: {get_mean(time_stamps, sizes)}')
+    plt.plot(time_stamps, sizes, label='Donation room')
+
+    time_stamps, sizes = zip(*data['total'])
+    print(f'Total donors mean: {np.mean(sizes)}')
+    print(f'normal mean: {np.mean(sizes)}')
+    print(f'weighted mean: {get_mean(time_stamps, sizes)}')
+    plt.plot(time_stamps, sizes, label='Total')
+
+    plt.legend(loc='upper left', bbox_to_anchor=(1.0, 1.0))
+    plt.title('Donors in each section during the day')
+    plt.xlabel('Time (minutes)')
+    plt.ylabel('Donors')
+    plt.show()

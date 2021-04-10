@@ -13,17 +13,17 @@ interview_q    = system.createQ('Pre-interview')
 donation_q     = system.createQ('Donation')
 connect_q      = system.createQ('Connect')
 disconnect_q   = system.createQ('Disconnect')
-receptionist = system.createStaff('Receptionist 1')
+receptionist = system.createStaff('Receptionist', 'Receptionist 1')
 doctors = [
-    system.createStaff('Doctor 1'),
-    system.createStaff('Doctor 2'),
-    system.createStaff('Doctor 3'),
+    system.createStaff('Doctor', 'Doctor 1'),
+    system.createStaff('Doctor', 'Doctor 2'),
+    system.createStaff('Doctor', 'Doctor 3'),
 ]
 nurses = [
-    system.createStaff('Nurse 1'),
-    system.createStaff('Nurse 2'),
-    system.createStaff('Nurse 3'),
-    system.createStaff('Nurse 4')
+    system.createStaff('Nurse', 'Nurse 1'),
+    system.createStaff('Nurse', 'Nurse 2'),
+    system.createStaff('Nurse', 'Nurse 3'),
+    system.createStaff('Nurse', 'Nurse 4')
 ]
 
 # Returns the arrival rate per minute of whole blood donors
