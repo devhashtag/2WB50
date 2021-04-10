@@ -64,7 +64,13 @@ def queue_lengths(events):
         queues = set()
 
         for action in event.executed_actions:
-            if type(action) != DonorAction or type(action.component) != Q:
+            if type(action) is CombinedAction:
+                action = action.donor_action
+
+            if not type(action) is DonorAction: 
+                continue
+
+            if not type(action.component) is Q:
                 continue
 
             q = action.component
@@ -95,7 +101,13 @@ def sojourn_times(events):
     for event in events:
         time = event.time
         for action in event.executed_actions:
-            if not (action.type == Action.LEAVE and type(action.component) is System):
+            if type(action) is CombinedAction:
+                action = action.donor_action
+
+            if not type(action) is DonorAction:
+                continue
+
+            if not (action.type == DonorAction.LEAVE and type(action.component) is System):
                 continue
             
             donor = action.donor
@@ -121,6 +133,12 @@ def section_donors(events):
         sec = None
 
         for action in event.executed_actions:
+            if type(action) is CombinedAction:
+                action = action.donor_action
+
+            if not type(action) is DonorAction:
+                continue
+
             if not type(action.component) is Section:
                 continue
 
@@ -128,10 +146,10 @@ def section_donors(events):
             if not sec in sec_occupants:
                 sec_occupants[sec] = 0
 
-            if action.type == Action.ENTER:
+            if action.type == DonorAction.ENTER:
                 sec_occupants[sec] += 1
                 sec_occupants['total'] += 1
-            elif action.type == Action.LEAVE:
+            elif action.type == DonorAction.LEAVE:
                 sec_occupants[sec] -= 1
                 sec_occupants['total'] -= 1
 
@@ -161,9 +179,12 @@ def staff_occupation(events):
         staff = None
 
         for action in event.executed_actions:
-            if not type(action) is StaffAction:
+            if type(action) is CombinedAction:
+                action = action.staff_action
+
+            if not (type(action) is StaffAction):
                 continue
-            print(action)
+
             staff = action.staff_member.job
 
             if action.type is StaffAction.FREE:
@@ -283,6 +304,6 @@ def display_staff_occupation(events):
     plt.ylabel('Donors')
     plt.show()
 
-display_staff_occupation(events)
+display_average_number_donors(events)
 
 # [[print(action) for action in event.executed_actions] for event in events]

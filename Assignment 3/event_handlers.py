@@ -120,7 +120,7 @@ def donation_policy(nurse, time, action, action_builder):
 
         disconnect_finish = time + dist_disconnect.rvs()
         action_builder.free_staff(nurse).at(disconnect_finish).build()
-        action_builder.leave(system).at(disconnect_finish + dist_recover.rvs()).build()
+        action_builder.leave(donation_room).at(disconnect_finish + dist_recover.rvs()).build()
 
     if not connect_q.is_empty():
         # Priority 2: Connect plasma donor
