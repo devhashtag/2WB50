@@ -115,6 +115,7 @@ class Component(ABC):
         self.init()
 
     def init(self): pass
+
     def enter(self, donor):
         if donor in self.donors:
             raise RuntimeError(f'{donor} cannot enter {self} because {donor} is already in {self}')
@@ -161,6 +162,7 @@ class Q(Component):
     def enter(self, donor):
         super().enter(donor)
         self.queue.append(donor)
+        print(f'{donor} added to {self}, length: {len(self.queue)}')
 
     def leave(self, donor):
         super().leave(donor)
@@ -248,13 +250,14 @@ class System(Component):
             if action.type == StaffAction.OCCUPY:
                 action.staff_member.occupied = True
             elif action.type == StaffAction.FREE:
-                action.staff_memeber.occupied = False
+                action.staff_member.occupied = False
             else:
                 raise RuntimeError(f'Unknown StaffAction type: {action.type}')
             return
 
         if type(action) is DonorAction:
             if action.type == DonorAction.ENTER:
+                # print(f'executed action: {action}, type: {action.type}')
                 action.component.enter(action.donor)
             elif action.type == DonorAction.LEAVE:
                 action.component.leave(action.donor)
@@ -279,10 +282,13 @@ class System(Component):
             builder = ActionBuilder()
 
             if type(action) is DonorAction:
+                # print(f'action to check subscriptions of: {action}')
                 builder.use_donor(action.donor)
             elif type(action) is StaffAction:
+                # print("StaffAction")
                 builder.use_staff(action.staff_member)
 
+            # print(f'handler: {handler}')
             handler(self.time, action, builder)
             yield from builder.actions
 
@@ -302,10 +308,10 @@ class System(Component):
             index += 1
 
             response_actions = self.check_subscriptions(action)
-            action_queue.extend(response_actions)
 
             for response_action in response_actions:
                 self.execute_action(response_action)
+                action_queue.append(response_action)            
 
         # store all executed actions in the event that triggered them
         event.executed_actions = action_queue
@@ -361,6 +367,7 @@ class ActionBuilder:
     def occupy_staff(self, staff_member=None):
         _, _, staff_member = self.resolve(staff_member=staff_member)
         self.action_data['staff_action'] = StaffAction(staff_member, StaffAction.OCCUPY)
+        return self
 
     def free_staff(self, staff_member=None):
         _, _, staff_member = self.resolve(staff_member=staff_member)

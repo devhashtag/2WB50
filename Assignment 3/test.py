@@ -309,3 +309,5 @@ def display_staff_occupation(events):
     plt.xlabel('Time (minutes)')
     plt.ylabel('Donors')
     plt.show()
+
+# [[print(action) for action in event.executed_actions] for event in events]
