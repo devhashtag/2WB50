@@ -290,8 +290,8 @@ def display_ql_results(data):
     plt.title('Queue lengths during the day')
     plt.xlabel('Time (minutes)')
     plt.ylabel('Queue length')
-    # plt.savefig('default_queue_lengths.png')
-    plt.show()
+    plt.savefig('default_queue_lengths.png')
+    # plt.show()
 
 def display_st_results(data):
     st_blood, st_plasma = data
@@ -313,8 +313,8 @@ def display_average_number_donors(data):
     plt.title('Donors in each section during the day')
     plt.xlabel('Time (minutes)')
     plt.ylabel('Donors')
-    # plt.savefig('default_number_donors.png')
-    plt.show()
+    plt.savefig('default_number_donors.png')
+    # plt.show()
 
 def display_staff_occupation(data):
     plt.figure(figsize=(10,5))
@@ -337,7 +337,7 @@ def calculate_staff_occupation(events):
     last_occupy = {}
 
     for staff in system.staff:
-        occupation[staff] = [(0, 0)]
+        occupation[staff] = [(opening_time, 0)]
 
     for event in events:
         for action in event.executed_actions:
@@ -375,21 +375,27 @@ def display_bed_occupation(data):
     plt.title('Bed occupation during the day')
     plt.xlabel('Time (minutes)')
     plt.ylabel('Donors')
-    # plt.savefig('default_bed_occupation.png')
-    plt.show()
+    plt.savefig('default_bed_occupation.png')
+    # plt.show()
 
 
-def display_cumulative_occupation(events):
-    data = calculate_staff_occupation(events_by_day[0])
-
+def display_cumulative_occupation(data):
     for staff in data.keys():
-        times, minutes = zip(*data[staff])
-        plt.plot(times, minutes, label=f'{staff}')
-    plt.title('Cumulative occupation in minutes per staff member')
+        # print(staff)
+        times, n_occupied = zip(*data[staff])
+        if staff == 'Doctor':
+            n_occupied = [x / len(doctors) for x in n_occupied]
+        elif staff == 'Nurse':
+            n_occupied = [x / len(nurses) for x in n_occupied]
+        n_occupied = [100 * x for x in n_occupied]
+
+        plt.plot(times, n_occupied, label=f'{staff}')
+
+    plt.title('Occupation in percentages per staff type')
     plt.xlabel('Time in minutes')
-    plt.ylabel('Cumulative occupation in minutes')
+    plt.ylabel('Occupation in percentages')
     plt.legend()
-    # plt.savefig('default_cumulative_occupation')
+    # plt.savefig('default_occupation.png')
     plt.show()
 
 def display_all_results(events, individual):
@@ -429,12 +435,13 @@ def display_all_results(events, individual):
         display_average_number_donors(data)
         data = combine_days(ql_per_minute)
         display_ql_results(data)
-        data = combine_days(st)
-        display_st_results(data)
+        # data = combine_days(st)
+        # display_st_results(data)
         data = combine_days(bo_per_minute)
         display_bed_occupation(data)
         data = combine_days(so_per_minute)
         display_staff_occupation(data)
+        display_cumulative_occupation(data)
 
 def combine_days(days_data):
     # minute_data = {}
@@ -469,7 +476,7 @@ def run_simulation(days):
 
     return events_by_day
 
-events_by_day = run_simulation(10)
+events_by_day = run_simulation(2)
 display_all_results(events_by_day, False)
 
 # [[print(action) for action in event.executed_actions] for event in events]
