@@ -2,7 +2,6 @@ import math
 import numpy as np
 import pandas as pd
 from system_definition import *
-# from system_definition import create_system
 from event_handlers import *
 from util import *
 import matplotlib.pyplot as plt
