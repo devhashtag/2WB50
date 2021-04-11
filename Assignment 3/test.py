@@ -36,7 +36,7 @@ def add_arrivals():
     system.re_init()
     # add plasma donor arrivals
     num = 0
-    for t in range(opening_time, closing_time - 60, 5):
+    for t in range(opening_time, closing_time - 60, 6):
         num += 1
         if np.random.random() <= 0.85:
             system.add_arrival(t, Donor(t, Donor.PLASMA))
@@ -69,7 +69,13 @@ def queue_lengths(events):
     queue_sizes = { }
 
     # will contain lists of tuples of form (time, queue_size)
-    queues_data = { }
+    queues_data = {
+        registration_q: [(480, 0)],
+        interview_q:    [(480, 0)],
+        donation_q:     [(480, 0)],
+        connect_q:      [(480, 0)],
+        disconnect_q:   [(480, 0)]
+    }
     
     for event in events:
         time = event.time
@@ -137,8 +143,14 @@ def section_donors(events):
     sec_occupants['Total'] = 0
 
     # will contain lists of tuples of form (time, queue_size)
-    sec_data = { }
-    sec_data['Total'] = [(480, 0)]
+    sec_data = { 
+        registration_line:  [(480, 0)],
+        question_room:      [(480, 0)],
+        pre_interview_room: [(480, 0)],
+        pre_donation_room:  [(480, 0)],
+        donation_room:      [(480, 0)],
+        'Total':            [(480, 0)]
+    }
 
     for event in events:
         time = event.time
@@ -467,11 +479,6 @@ def display_all_results(events, individual):
             print(f'{section}: \nMean:{np.mean(data)} \nCI:{ci}')
 
 def combine_days(days_data):
-    # minute_data = {}
-    # for key in days_data[0]:
-    #     key_data = [days_data[day][key] for day in days_data]
-    #      = zip(*key_data)
-    # return minute_data
     n_days = len(days_data)
     key_data = {}
     for key in days_data[0]:
@@ -501,5 +508,3 @@ def run_simulation(days):
 
 events_by_day = run_simulation(10)
 display_all_results(events_by_day, False)
-
-# [[print(action) for action in event.executed_actions] for event in events]
