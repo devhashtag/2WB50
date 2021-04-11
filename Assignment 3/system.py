@@ -143,7 +143,7 @@ it just signifies that there is a collection of donors waiting on something
 '''
 class Q(Component):
     def init(self):
-        self.queue = [] #TODO: If simulation is inefficient, make this an ordered set (dict without values)
+        self.queue = []
 
     def size(self):
         return len(self.queue)
