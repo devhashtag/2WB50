@@ -1,11 +1,13 @@
+import math
 import numpy as np
+import pandas as pd
 from system_definition import *
 # from system_definition import create_system
 from event_handlers import *
 from util import *
 import matplotlib.pyplot as plt
 
-np.random.seed(1)
+np.random.seed(2)
 
 # Register all event handlers and policies
 def register_handlers():
@@ -91,7 +93,7 @@ def queue_lengths(events):
 
         for q in queues:
             if not q in queues_data:
-                queues_data[q] = []
+                queues_data[q] = [(480, 0)]
             queues_data[q].append((time, queue_sizes[q]))
 
     return queues_data
@@ -130,7 +132,7 @@ def section_donors(events):
 
     # will contain lists of tuples of form (time, queue_size)
     sec_data = { }
-    sec_data['total'] = []
+    sec_data['total'] = [(480, 0)]
 
     for event in events:
         time = event.time
@@ -159,7 +161,7 @@ def section_donors(events):
 
         if sec != None:
             if not sec in sec_data:
-                sec_data[sec] = []
+                sec_data[sec] = [(480, 0)]
             sec_data[sec].append((time, sec_occupants[sec]))
             sec_data['total'].append((time, sec_occupants['total']))
 
@@ -256,9 +258,28 @@ def get_mean(times, amounts):
     weighted_amounts = [ amounts[i] * (times[i+1] - times[i]) for i in range(len(times)-1)]
     return np.sum(weighted_amounts)/times[-1]
 
-def display_ql_results(events):
-    data = queue_lengths(events)
+def fill_minutes(data):
+    filled_day = {}
+    for key in data:
+        tuples = data[key]
+        filled_day[key] = []
+        for i in range(480, 1260):
+            curr_minute = []
+            for index in range(len(tuples)-1, -1, -1):
+                time = math.floor(tuples[index][0])
+                if time > i:
+                    continue
+                elif time == i:
+                    curr_minute.append(tuples[index][1])
+                elif time < i and not curr_minute == []:
+                    break
+                else: 
+                    curr_minute.append(tuples[index][1])
+                    break
+            filled_day[key].append((i, np.mean(curr_minute)))
+    return filled_day
 
+def display_ql_results(data):
     plt.figure(figsize=(10,5))
 
     for queue in data.keys():
@@ -272,16 +293,14 @@ def display_ql_results(events):
     # plt.savefig('default_queue_lengths.png')
     plt.show()
 
-def display_st_results(events):
-    st_blood, st_plasma = sojourn_times(events)
+def display_st_results(data):
+    st_blood, st_plasma = data
     print(f'Mean whole blood st: {np.mean(st_blood)}')
     print(f'Mean plasma st: {np.mean(st_plasma)}')
 
     # confidence intervals
 
-def display_average_number_donors(events):
-    data = section_donors(events)
-
+def display_average_number_donors(data):
     plt.figure(figsize=(10,5))
     for section in data.keys():
         time_stamps, sizes = zip(*data[section])
@@ -297,9 +316,7 @@ def display_average_number_donors(events):
     # plt.savefig('default_number_donors.png')
     plt.show()
 
-def display_staff_occupation(events):
-    data = staff_occupation(events)
-
+def display_staff_occupation(data):
     plt.figure(figsize=(10,5))
     for staff_member in data.keys():
         time_stamps, sizes = zip(*data[staff_member])
@@ -340,9 +357,7 @@ def calculate_staff_occupation(events):
 
     return occupation
 
-def display_bed_occupation(events):
-    data = bed_occupation(events)
-
+def display_bed_occupation(data):
     plt.figure(figsize=(10,5))
     time_stamps, sizes = zip(*data['Whole blood'])
     print(f'Whole blood beds available mean: {np.mean(sizes)}')
@@ -380,24 +395,64 @@ def display_cumulative_occupation(events):
 def display_all_results(events, individual):
     if individual:
         for day in events:
-            display_average_number_donors(events[day])
-            # display_ql_results(events[day])
-            display_st_results(events[day])
-            # display_bed_occupation(events[day])
-            # display_staff_occupation(events[day])
+            display_average_number_donors(section_donors(events[day]))
+            display_ql_results(queue_lengths(events[day]))
+            display_st_results(sojourn_times(events[day]))
+            display_bed_occupation(bed_occupation(events[day]))
+            display_staff_occupation(staff_occupation(events[day]))
+            display_cumulative_occupation(events[day])
     else:
         sd = {}
+        sd_per_minute = {}
         ql = {}
-        st = {}
+        ql_per_minute = {}
         bo = {}
+        bo_per_minute = {}
         so = {}
+        so_per_minute = {}
+        st = {}
+
         for day in events:
             sd[day] = section_donors(events[day])
             ql[day] = queue_lengths(events[day])
-            st[day] = sojourn_times(events[day])
             bo[day] = bed_occupation(events[day])
             so[day] = staff_occupation(events[day])
+            st[day] = sojourn_times(events[day])
 
+        for day in events:
+            sd_per_minute[day] = fill_minutes(sd[day])
+            ql_per_minute[day] = fill_minutes(ql[day])
+            bo_per_minute[day] = fill_minutes(bo[day])
+            so_per_minute[day] = fill_minutes(so[day])
+
+        data = combine_days(so_per_minute)
+
+        # display_average_number_donors(sd_per_minute)
+        # display_ql_results(ql_per_minute)
+        # display_st_results(st)
+        # display_bed_occupation(bo_per_minute)
+        # display_staff_occupation(so_per_minute)
+
+def combine_days(days_data):
+    # minute_data = {}
+    # for key in days_data[0]:
+    #     key_data = [days_data[day][key] for day in days_data]
+    #      = zip(*key_data)
+    # return minute_data
+    n_days = len(days_data)
+    key_data = {}
+    for key in days_data[0]:
+        temp = [days_data[day][key] for day in days_data]
+        values = {}
+        for day in range(n_days):
+            tuples = temp[day]
+            values[day] = [tup[1] for tup in tuples]
+        minutes = [[values[day][n] for day in range(n_days)] for n in range(len(values[0]))]
+        key_data[key] = [np.mean(minute) for minute in minutes]
+        key_data[key] = list(zip(range(480, 1260), key_data[key]))
+    df = pd.DataFrame(key_data)
+    print(df)
+    
 
 def run_simulation(days):
     register_handlers()
@@ -414,11 +469,7 @@ def run_simulation(days):
 events_by_day = run_simulation(1)
 
 
-display_cumulative_occupation(events_by_day[0])
-display_ql_results(events_by_day[0])
-display_average_number_donors(events_by_day[0])
-display_bed_occupation(events_by_day[0])
-display_staff_occupation(events_by_day[0])
-display_all_results(events_by_day, True)
+events_by_day = run_simulation(10)
+display_all_results(events_by_day, False)
 
 # [[print(action) for action in event.executed_actions] for event in events]
