@@ -6,6 +6,7 @@ from system_definition import *
 from event_handlers import *
 from util import *
 import matplotlib.pyplot as plt
+from scipy import stats
 
 np.random.seed(2)
 
@@ -18,8 +19,9 @@ def register_handlers():
     system.subscribe(donation_room.LEAVE, on_donation_room_leave)
     system.subscribe(system.LEAVE, on_donor_leave)
 
-    receptionist.policy = registration_policy
-    receptionist.subscribe(registration_q.ENTER)
+    for receptionist in receptionists:
+        receptionist.policy = registration_policy
+        receptionist.subscribe(registration_q.ENTER)
 
     for doctor in doctors:
         doctor.policy = interview_policy
@@ -417,6 +419,8 @@ def display_all_results(events, individual):
         so = {}
         so_per_minute = {}
         st = {}
+        st_mean_wb = []
+        st_mean_pl = []
 
         for day in events:
             sd[day] = section_donors(events[day])
@@ -430,18 +434,28 @@ def display_all_results(events, individual):
             ql_per_minute[day] = fill_minutes(ql[day])
             bo_per_minute[day] = fill_minutes(bo[day])
             so_per_minute[day] = fill_minutes(so[day])
+            st_mean_wb.append(np.mean(st[day][0]))
+            st_mean_pl.append(np.mean(st[day][1]))
 
         data = combine_days(sd_per_minute)
         display_average_number_donors(data)
+
         data = combine_days(ql_per_minute)
         display_ql_results(data)
         # data = combine_days(st)
         # display_st_results(data)
+
         data = combine_days(bo_per_minute)
         display_bed_occupation(data)
+
         data = combine_days(so_per_minute)
         display_staff_occupation(data)
         display_cumulative_occupation(data)
+
+        st_confidence_interval_wb = stats.t.interval(0.95, len(st_mean_wb)-1, loc=np.mean(st_mean_wb), scale=stats.sem(st_mean_wb))
+        st_confidence_interval_pl = stats.t.interval(0.95, len(st_mean_pl)-1, loc=np.mean(st_mean_pl), scale=stats.sem(st_mean_pl))
+        print(f'Whole blood: \nMean:{np.mean(st_mean_wb)} \nCI:{st_confidence_interval_wb}')
+        print(f'Plasma: \nMean:{np.mean(st_mean_pl)} \nCI:{st_confidence_interval_pl}')
 
 def combine_days(days_data):
     # minute_data = {}
