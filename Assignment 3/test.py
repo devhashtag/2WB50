@@ -334,7 +334,7 @@ def display_staff_occupation(data):
     plt.legend(loc='upper left', bbox_to_anchor=(1.0, 1.0))
     plt.title('Staff occupation during the day')
     plt.xlabel('Time (minutes)')
-    plt.ylabel('Donors')
+    plt.ylabel('Amount of occupied staff members')
     plt.savefig('default_staff_occupation.png')
     plt.show()
 
@@ -386,6 +386,7 @@ def display_bed_occupation(data):
 
 
 def display_cumulative_occupation(data):
+    plt.figure(figsize=(10,5))
     for staff in data.keys():
         print(staff)
         times, n_occupied = zip(*data[staff])
@@ -400,7 +401,7 @@ def display_cumulative_occupation(data):
     plt.title('Occupation in percentages per staff type')
     plt.xlabel('Time in minutes')
     plt.ylabel('Occupation in percentages')
-    plt.legend()
+    plt.legend(loc='upper left', bbox_to_anchor=(1.0, 1.0))
     plt.savefig('default_occupation.png')
     plt.show()
 
@@ -452,6 +453,7 @@ def display_all_results(events, individual):
 
         data = combine_days(so_per_minute)
         display_staff_occupation(data)
+        display_cumulative_occupation(data)
 
         print('\n Confidence intervals:')
         st_confidence_interval_wb = stats.t.interval(0.95, len(st_mean_wb)-1, loc=np.mean(st_mean_wb), scale=stats.sem(st_mean_wb))
