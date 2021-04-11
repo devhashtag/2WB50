@@ -18,8 +18,9 @@ def register_handlers():
     system.subscribe(donation_room.LEAVE, on_donation_room_leave)
     system.subscribe(system.LEAVE, on_donor_leave)
 
-    receptionist.policy = registration_policy
-    receptionist.subscribe(registration_q.ENTER)
+    for receptionist in receptionists:
+        receptionist.policy = registration_policy
+        receptionist.subscribe(registration_q.ENTER)
 
     for doctor in doctors:
         doctor.policy = interview_policy
@@ -429,8 +430,8 @@ def display_all_results(events, individual):
         display_average_number_donors(data)
         data = combine_days(ql_per_minute)
         display_ql_results(data)
-        data = combine_days(st)
-        display_st_results(data)
+        # data = combine_days(st)
+        # display_st_results(data)
         data = combine_days(bo_per_minute)
         display_bed_occupation(data)
         data = combine_days(so_per_minute)
