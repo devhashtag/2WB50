@@ -17,7 +17,7 @@ receptionist = system.createStaff('Receptionist', 'Receptionist 1')
 doctors = [
     system.createStaff('Doctor', 'Doctor 1'),
     system.createStaff('Doctor', 'Doctor 2'),
-    system.createStaff('Doctor', 'Doctor 3'),
+    # system.createStaff('Doctor', 'Doctor 3'),
 ]
 nurses = [
     system.createStaff('Nurse', 'Nurse 1'),

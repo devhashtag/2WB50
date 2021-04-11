@@ -312,8 +312,33 @@ def display_staff_occupation(events):
     plt.title('Staff occupation during the day')
     plt.xlabel('Time (minutes)')
     plt.ylabel('Donors')
-    # plt.savefig('default_staff_occupation.png')
-    plt.show()
+    plt.savefig('default_staff_occupation.png')
+    # plt.show()
+
+def calculate_staff_occupation(events):
+    occupation = {}
+    last_occupy = {}
+
+    for staff in system.staff:
+        occupation[staff] = [(0, 0)]
+
+    for event in events:
+        for action in event.executed_actions:
+            if type(action) is CombinedAction:
+                action = action.staff_action
+
+            if not type(action) is StaffAction:
+                continue
+
+            if action.type is StaffAction.OCCUPY:
+                previous = occupation[action.staff_member][-1]
+                occupation[action.staff_member].append((event.time, previous[1]))
+
+            if action.type is StaffAction.FREE:
+                previous = occupation[action.staff_member][-1]
+                occupation[action.staff_member].append((event.time, previous[1] + (event.time - previous[0])))
+
+    return occupation
 
 def display_bed_occupation(events):
     data = bed_occupation(events)
@@ -336,6 +361,20 @@ def display_bed_occupation(events):
     plt.xlabel('Time (minutes)')
     plt.ylabel('Donors')
     # plt.savefig('default_bed_occupation.png')
+    plt.show()
+
+
+def display_cumulative_occupation(events):
+    data = calculate_staff_occupation(events_by_day[0])
+
+    for staff in data.keys():
+        times, minutes = zip(*data[staff])
+        plt.plot(times, minutes, label=f'{staff}')
+    plt.title('Cumulative occupation in minutes per staff member')
+    plt.xlabel('Time in minutes')
+    plt.ylabel('Cumulative occupation in minutes')
+    plt.legend()
+    # plt.savefig('default_cumulative_occupation')
     plt.show()
 
 def display_all_results(events, individual):
@@ -372,7 +411,14 @@ def run_simulation(days):
 
     return events_by_day
 
-events_by_day = run_simulation(10)
+events_by_day = run_simulation(1)
+
+
+display_cumulative_occupation(events_by_day[0])
+display_ql_results(events_by_day[0])
+display_average_number_donors(events_by_day[0])
+display_bed_occupation(events_by_day[0])
+display_staff_occupation(events_by_day[0])
 display_all_results(events_by_day, True)
 
 # [[print(action) for action in event.executed_actions] for event in events]
