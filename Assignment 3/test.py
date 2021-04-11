@@ -287,6 +287,7 @@ def display_ql_results(events):
     plt.title('Queue lengths during the day')
     plt.xlabel('Time (minutes)')
     plt.ylabel('Queue length')
+    # plt.savefig('default_queue_lengths.png')
     plt.show()
 
 def display_st_results(events):
@@ -311,6 +312,7 @@ def display_average_number_donors(events):
     plt.title('Donors in each section during the day')
     plt.xlabel('Time (minutes)')
     plt.ylabel('Donors')
+    # plt.savefig('default_number_donors.png')
     plt.show()
 
 def display_staff_occupation(events):
@@ -328,6 +330,7 @@ def display_staff_occupation(events):
     plt.title('Staff occupation during the day')
     plt.xlabel('Time (minutes)')
     plt.ylabel('Donors')
+    # plt.savefig('default_staff_occupation.png')
     plt.show()
 
 def display_bed_occupation(events):
@@ -350,6 +353,7 @@ def display_bed_occupation(events):
     plt.title('Bed occupation during the day')
     plt.xlabel('Time (minutes)')
     plt.ylabel('Donors')
+    # plt.savefig('default_bed_occupation.png')
     plt.show()
 
 def display_all_results(events):
