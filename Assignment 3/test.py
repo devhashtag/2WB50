@@ -442,8 +442,6 @@ def display_all_results(events, individual):
 
         data = combine_days(ql_per_minute)
         display_ql_results(data)
-        # data = combine_days(st)
-        # display_st_results(data)
 
         data = combine_days(bo_per_minute)
         display_bed_occupation(data)
@@ -451,6 +449,11 @@ def display_all_results(events, individual):
         data = combine_days(so_per_minute)
         display_staff_occupation(data)
         display_cumulative_occupation(data)
+
+        st_confidence_interval_wb = stats.t.interval(0.95, len(st_mean_wb)-1, loc=np.mean(st_mean_wb), scale=stats.sem(st_mean_wb))
+        st_confidence_interval_pl = stats.t.interval(0.95, len(st_mean_pl)-1, loc=np.mean(st_mean_pl), scale=stats.sem(st_mean_pl))
+        print(f'Whole blood: \nMean:{np.mean(st_mean_wb)} \nCI:{st_confidence_interval_wb}')
+        print(f'Plasma: \nMean:{np.mean(st_mean_pl)} \nCI:{st_confidence_interval_pl}')
 
         st_confidence_interval_wb = stats.t.interval(0.95, len(st_mean_wb)-1, loc=np.mean(st_mean_wb), scale=stats.sem(st_mean_wb))
         st_confidence_interval_pl = stats.t.interval(0.95, len(st_mean_pl)-1, loc=np.mean(st_mean_pl), scale=stats.sem(st_mean_pl))
