@@ -7,31 +7,6 @@ import matplotlib.pyplot as plt
 
 np.random.seed(1)
 
-# def reset_system():
-#     system.re_init()
-#     registration_line.re_init()
-#     question_room.re_init()
-#     pre_interview_room.re_init()
-#     pre_donation_room.re_init()
-#     donation_room.re_init()
-#     registration_q.re_init()
-#     interview_q.re_init()
-#     donation_q.re_init()
-#     connect_q.re_init()
-#     disconnect_q.re_init()
-#     receptionist = system.createStaff('Receptionist', 'Receptionist 1')
-#     doctors = [
-#         system.createStaff('Doctor', 'Doctor 1'),
-#         system.createStaff('Doctor', 'Doctor 2'),
-#         system.createStaff('Doctor', 'Doctor 3'),
-#     ]
-#     nurses = [
-#         system.createStaff('Nurse', 'Nurse 1'),
-#         system.createStaff('Nurse', 'Nurse 2'),
-#         system.createStaff('Nurse', 'Nurse 3'),
-#         system.createStaff('Nurse', 'Nurse 4')
-#     ]
-
 # Register all event handlers and policies
 def register_handlers():
     system.subscribe(system.ENTER, on_arrive)
@@ -193,14 +168,18 @@ def section_donors(events):
 def staff_occupation(events):
     # for saving the average number of donors per section
     staff_occupation = { 
-        'Receptionist': 1,
-        'Doctor': len(doctors),
-        'Nurse': len(nurses)
+        'Receptionist': 0,
+        'Doctor': 0,
+        'Nurse': 0
     }
     # staff_occupation['total'] = 0
 
     # will contain lists of tuples of form (time, queue_size)
-    staff_data = { }
+    staff_data = { 
+        'Receptionist': [(480, 0)],
+        'Doctor': [(480, 0)],
+        'Nurse': [(480, 0)] 
+    }
     # staff_data['total'] = []
 
     for event in events:
@@ -217,9 +196,9 @@ def staff_occupation(events):
             staff = action.staff_member.job
 
             if action.type is StaffAction.FREE:
-                staff_occupation[staff] += 1
-            else:
                 staff_occupation[staff] -= 1
+            else:
+                staff_occupation[staff] += 1
 
         if staff != None:
             if not staff in staff_data:
@@ -237,7 +216,10 @@ def bed_occupation(events):
     }
 
     # will contain lists of tuples of form (time, queue_size)
-    bed_data = { }
+    bed_data = {
+        'Whole blood': [(480, 0)],
+        'Plasma': [(480, 0)]
+     }
 
     for event in events:
         time = event.time
@@ -356,18 +338,41 @@ def display_bed_occupation(events):
     # plt.savefig('default_bed_occupation.png')
     plt.show()
 
-def display_all_results(events):
-    display_average_number_donors(events)
-    display_ql_results(events)
-    display_st_results(events)
-    display_bed_occupation(events)
-    display_staff_occupation(events)
+def display_all_results(events, individual):
+    if individual:
+        for day in events:
+            display_average_number_donors(events[day])
+            # display_ql_results(events[day])
+            display_st_results(events[day])
+            # display_bed_occupation(events[day])
+            # display_staff_occupation(events[day])
+    else:
+        sd = {}
+        ql = {}
+        st = {}
+        bo = {}
+        so = {}
+        for day in events:
+            sd[day] = section_donors(events[day])
+            ql[day] = queue_lengths(events[day])
+            st[day] = sojourn_times(events[day])
+            bo[day] = bed_occupation(events[day])
+            so[day] = staff_occupation(events[day])
 
-# reset_system()
-register_handlers()
-add_arrivals()
-events = simulate()
 
-display_all_results(events)
+def run_simulation(days):
+    register_handlers()
+
+    events_by_day = {}
+
+    for day in range(days):
+        add_arrivals()
+        events = simulate()
+        events_by_day[day] = events
+
+    return events_by_day
+
+events_by_day = run_simulation(10)
+display_all_results(events_by_day, True)
 
 # [[print(action) for action in event.executed_actions] for event in events]
