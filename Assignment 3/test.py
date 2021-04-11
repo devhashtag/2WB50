@@ -425,13 +425,16 @@ def display_all_results(events, individual):
             bo_per_minute[day] = fill_minutes(bo[day])
             so_per_minute[day] = fill_minutes(so[day])
 
+        data = combine_days(sd_per_minute)
+        display_average_number_donors(data)
+        data = combine_days(ql_per_minute)
+        display_ql_results(data)
+        data = combine_days(st)
+        display_st_results(data)
+        data = combine_days(bo_per_minute)
+        display_bed_occupation(data)
         data = combine_days(so_per_minute)
-
-        # display_average_number_donors(sd_per_minute)
-        # display_ql_results(ql_per_minute)
-        # display_st_results(st)
-        # display_bed_occupation(bo_per_minute)
-        # display_staff_occupation(so_per_minute)
+        display_staff_occupation(data)
 
 def combine_days(days_data):
     # minute_data = {}
@@ -450,8 +453,8 @@ def combine_days(days_data):
         minutes = [[values[day][n] for day in range(n_days)] for n in range(len(values[0]))]
         key_data[key] = [np.mean(minute) for minute in minutes]
         key_data[key] = list(zip(range(480, 1260), key_data[key]))
-    df = pd.DataFrame(key_data)
-    print(df)
+
+    return key_data
     
 
 def run_simulation(days):
@@ -465,9 +468,6 @@ def run_simulation(days):
         events_by_day[day] = events
 
     return events_by_day
-
-events_by_day = run_simulation(1)
-
 
 events_by_day = run_simulation(10)
 display_all_results(events_by_day, False)
