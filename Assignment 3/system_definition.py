@@ -15,7 +15,7 @@ connect_q      = system.createQ('Connect')
 disconnect_q   = system.createQ('Disconnect')
 receptionists = [
     system.createStaff('Receptionist', 'Receptionist 1'),
-    # system.createStaff('Receptionist', 'Receptionist 2')
+#     system.createStaff('Receptionist', 'Receptionist 2')
 ]
 doctors = [
     system.createStaff('Doctor', 'Doctor 1'),

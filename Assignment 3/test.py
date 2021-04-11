@@ -134,11 +134,11 @@ def sojourn_times(events):
 def section_donors(events):
     # for saving the average number of donors per section
     sec_occupants = { }
-    sec_occupants['total'] = 0
+    sec_occupants['Total'] = 0
 
     # will contain lists of tuples of form (time, queue_size)
     sec_data = { }
-    sec_data['total'] = [(480, 0)]
+    sec_data['Total'] = [(480, 0)]
 
     for event in events:
         time = event.time
@@ -160,16 +160,16 @@ def section_donors(events):
 
             if action.type == DonorAction.ENTER:
                 sec_occupants[sec] += 1
-                sec_occupants['total'] += 1
+                sec_occupants['Total'] += 1
             elif action.type == DonorAction.LEAVE:
                 sec_occupants[sec] -= 1
-                sec_occupants['total'] -= 1
+                sec_occupants['Total'] -= 1
 
         if sec != None:
             if not sec in sec_data:
                 sec_data[sec] = [(480, 0)]
             sec_data[sec].append((time, sec_occupants[sec]))
-            sec_data['total'].append((time, sec_occupants['total']))
+            sec_data['Total'].append((time, sec_occupants['Total']))
 
     return sec_data
 
@@ -441,8 +441,8 @@ def display_all_results(events, individual):
             st_mean_wb.append(np.mean(st[day][0]))
             st_mean_pl.append(np.mean(st[day][1]))
 
-        data = combine_days(sd_per_minute)
-        display_average_number_donors(data)
+        sd_data = combine_days(sd_per_minute)
+        display_average_number_donors(sd_data)
 
         data = combine_days(ql_per_minute)
         display_ql_results(data)
@@ -453,10 +453,16 @@ def display_all_results(events, individual):
         data = combine_days(so_per_minute)
         display_staff_occupation(data)
 
+        print('\n Confidence intervals:')
         st_confidence_interval_wb = stats.t.interval(0.95, len(st_mean_wb)-1, loc=np.mean(st_mean_wb), scale=stats.sem(st_mean_wb))
         st_confidence_interval_pl = stats.t.interval(0.95, len(st_mean_pl)-1, loc=np.mean(st_mean_pl), scale=stats.sem(st_mean_pl))
         print(f'Whole blood: \nMean:{np.mean(st_mean_wb)} \nCI:{st_confidence_interval_wb}')
         print(f'Plasma: \nMean:{np.mean(st_mean_pl)} \nCI:{st_confidence_interval_pl}')
+
+        for section in sd_data:
+            data = [tup[1] for tup in sd_data[section]]
+            ci = stats.t.interval(0.95, len(data)-1, loc=np.mean(data), scale=stats.sem(data))
+            print(f'{section}: \nMean:{np.mean(data)} \nCI:{ci}')
 
 def combine_days(days_data):
     # minute_data = {}
