@@ -265,7 +265,7 @@ def fill_minutes(data):
     for key in data:
         tuples = data[key]
         filled_day[key] = []
-        for i in range(480, 1260):
+        for i in range(480, 1500):
             curr_minute = []
             for index in range(len(tuples)-1, -1, -1):
                 time = math.floor(tuples[index][0])
@@ -293,7 +293,7 @@ def display_ql_results(data):
     plt.xlabel('Time (minutes)')
     plt.ylabel('Queue length')
     plt.savefig('default_queue_lengths.png')
-    # plt.show()
+    plt.show()
 
 def display_st_results(data):
     st_blood, st_plasma = data
@@ -316,7 +316,7 @@ def display_average_number_donors(data):
     plt.xlabel('Time (minutes)')
     plt.ylabel('Donors')
     plt.savefig('default_number_donors.png')
-    # plt.show()
+    plt.show()
 
 def display_staff_occupation(data):
     plt.figure(figsize=(10,5))
@@ -332,7 +332,7 @@ def display_staff_occupation(data):
     plt.xlabel('Time (minutes)')
     plt.ylabel('Donors')
     plt.savefig('default_staff_occupation.png')
-    # plt.show()
+    plt.show()
 
 def calculate_staff_occupation(events):
     occupation = {}
@@ -378,12 +378,12 @@ def display_bed_occupation(data):
     plt.xlabel('Time (minutes)')
     plt.ylabel('Donors')
     plt.savefig('default_bed_occupation.png')
-    # plt.show()
+    plt.show()
 
 
 def display_cumulative_occupation(data):
     for staff in data.keys():
-        # print(staff)
+        print(staff)
         times, n_occupied = zip(*data[staff])
         if staff == 'Doctor':
             n_occupied = [x / len(doctors) for x in n_occupied]
@@ -397,7 +397,7 @@ def display_cumulative_occupation(data):
     plt.xlabel('Time in minutes')
     plt.ylabel('Occupation in percentages')
     plt.legend()
-    # plt.savefig('default_occupation.png')
+    plt.savefig('default_occupation.png')
     plt.show()
 
 def display_all_results(events, individual):
@@ -447,7 +447,7 @@ def display_all_results(events, individual):
         display_bed_occupation(data)
 
         data = combine_days(so_per_minute)
-        display_staff_occupation(data)
+        # display_staff_occupation(data)
         display_cumulative_occupation(data)
 
         st_confidence_interval_wb = stats.t.interval(0.95, len(st_mean_wb)-1, loc=np.mean(st_mean_wb), scale=stats.sem(st_mean_wb))
@@ -476,7 +476,7 @@ def combine_days(days_data):
             values[day] = [tup[1] for tup in tuples]
         minutes = [[values[day][n] for day in range(n_days)] for n in range(len(values[0]))]
         key_data[key] = [np.mean(minute) for minute in minutes]
-        key_data[key] = list(zip(range(480, 1260), key_data[key]))
+        key_data[key] = list(zip(range(480, 1500), key_data[key]))
 
     return key_data
     
@@ -493,7 +493,7 @@ def run_simulation(days):
 
     return events_by_day
 
-events_by_day = run_simulation(2)
+events_by_day = run_simulation(50)
 display_all_results(events_by_day, False)
 
 # [[print(action) for action in event.executed_actions] for event in events]
