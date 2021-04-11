@@ -1,10 +1,36 @@
 import numpy as np
 from system_definition import *
+# from system_definition import create_system
 from event_handlers import *
 from util import *
 import matplotlib.pyplot as plt
 
 np.random.seed(1)
+
+# def reset_system():
+#     system.re_init()
+#     registration_line.re_init()
+#     question_room.re_init()
+#     pre_interview_room.re_init()
+#     pre_donation_room.re_init()
+#     donation_room.re_init()
+#     registration_q.re_init()
+#     interview_q.re_init()
+#     donation_q.re_init()
+#     connect_q.re_init()
+#     disconnect_q.re_init()
+#     receptionist = system.createStaff('Receptionist', 'Receptionist 1')
+#     doctors = [
+#         system.createStaff('Doctor', 'Doctor 1'),
+#         system.createStaff('Doctor', 'Doctor 2'),
+#         system.createStaff('Doctor', 'Doctor 3'),
+#     ]
+#     nurses = [
+#         system.createStaff('Nurse', 'Nurse 1'),
+#         system.createStaff('Nurse', 'Nurse 2'),
+#         system.createStaff('Nurse', 'Nurse 3'),
+#         system.createStaff('Nurse', 'Nurse 4')
+#     ]
 
 # Register all event handlers and policies
 def register_handlers():
@@ -28,6 +54,7 @@ def register_handlers():
         nurse.subscribe(disconnect_q.ENTER)
 
 def add_arrivals():
+    system.re_init()
     # add plasma donor arrivals
     for t in range(opening_time, closing_time - 60, 6):
         if np.random.random() <= 0.85:
@@ -50,7 +77,7 @@ def simulate():
     print(f'Number of donors:  {Donor.ID()}')
     print(f'Number of events:  {len(handled_events)}')
     print(f'Number of actions: {sum([len(event.executed_actions) for event in handled_events])}')
-    print(f'Donors in the system: {len(system.donors)}')
+    print(f'Donors in the system: {len(system.donors)}\n')
     return handled_events
 
 
@@ -243,11 +270,6 @@ def bed_occupation(events):
 
     return bed_data
 
-
-register_handlers()
-add_arrivals()
-events = simulate()
-
 def get_mean(times, amounts):
     weighted_amounts = [ amounts[i] * (times[i+1] - times[i]) for i in range(len(times)-1)]
     return np.sum(weighted_amounts)/times[-1]
@@ -330,6 +352,18 @@ def display_bed_occupation(events):
     plt.ylabel('Donors')
     plt.show()
 
-display_st_results(events)
+def display_all_results(events):
+    display_average_number_donors(events)
+    display_ql_results(events)
+    display_st_results(events)
+    display_bed_occupation(events)
+    display_staff_occupation(events)
+
+# reset_system()
+register_handlers()
+add_arrivals()
+events = simulate()
+
+display_all_results(events)
 
 # [[print(action) for action in event.executed_actions] for event in events]

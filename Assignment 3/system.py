@@ -222,6 +222,9 @@ class System(Component):
         self.arrivals = []
         self.time = 0
 
+    def re_init(self):
+        self.arrivals = []
+
     def createQ(self, name):
         q = Q(name)
         return q
