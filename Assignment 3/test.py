@@ -36,7 +36,7 @@ def add_arrivals():
     system.re_init()
     # add plasma donor arrivals
     num = 0
-    for t in range(opening_time, closing_time - 60, 6):
+    for t in range(opening_time, closing_time - 60, 5):
         num += 1
         if np.random.random() <= 0.85:
             system.add_arrival(t, Donor(t, Donor.PLASMA))
@@ -50,11 +50,6 @@ def add_arrivals():
 def simulate():
     simulator = Simulator(system)
     handled_events = simulator.simulate()
-
-    # for event in handled_events:
-    #     print('Event')
-    #     for action in event.executed_actions:
-    #         print(f'\t{action}')
 
     print(f'Closing time:      {to_time(simulator.time)}')
     print(f'Number of donors:  {Donor.ID()}')
@@ -192,7 +187,6 @@ def staff_occupation(events):
         'Doctor': 0,
         'Nurse': 0
     }
-    # staff_occupation['total'] = 0
 
     # will contain lists of tuples of form (time, queue_size)
     staff_data = { 
@@ -200,7 +194,6 @@ def staff_occupation(events):
         'Doctor': [(480, 0)],
         'Nurse': [(480, 0)] 
     }
-    # staff_data['total'] = []
 
     for event in events:
         time = event.time
@@ -224,7 +217,6 @@ def staff_occupation(events):
             if not staff in staff_data:
                 staff_data[staff] = []
             staff_data[staff].append((time, staff_occupation[staff]))
-            # staff_data['total'].append((time, staff_occupation['total']))
 
     return staff_data
 

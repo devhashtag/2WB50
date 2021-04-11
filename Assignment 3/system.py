@@ -162,10 +162,8 @@ class Q(Component):
     def enter(self, donor):
         super().enter(donor)
         self.queue.append(donor)
-        # print(f'{donor} added to {self}, length: {len(self.queue)}')
 
     def leave(self, donor):
-        # print(f'remove {donor} from {self}')
         super().leave(donor)
         self.queue.remove(donor)
     
@@ -261,7 +259,6 @@ class System(Component):
 
         if type(action) is DonorAction:
             if action.type == DonorAction.ENTER:
-                # print(f'executed action: {action}, type: {action.type}')
                 action.component.enter(action.donor)
             elif action.type == DonorAction.LEAVE:
                 action.component.leave(action.donor)
@@ -288,13 +285,10 @@ class System(Component):
             builder = ActionBuilder()
 
             if type(action) is DonorAction:
-                # print(f'action to check subscriptions of: {action}')
                 builder.use_donor(action.donor)
             elif type(action) is StaffAction:
-                # print("StaffAction")
                 builder.use_staff(action.staff_member)
 
-            # print(f'handler: {handler}')
             handler(self.time, action, builder)
             yield from builder.actions
 
@@ -313,19 +307,11 @@ class System(Component):
             action = action_queue[index]
             index += 1
 
-            # print(f'before execution of {action}')
-            # self.execute_action(action)
-
             response_actions = self.check_subscriptions(action)
 
             for response_action in response_actions:
                 self.execute_action(response_action)
                 action_queue.append(response_action)
-            # action_queue.extend(response_actions)  
-        
-        # print(f'at {self.time} action queue is: ')  
-        # [print(action) for action in action_queue]
-        # print("")        
 
         # store all executed actions in the event that triggered them
         event.executed_actions = action_queue
@@ -399,7 +385,6 @@ class ActionBuilder:
         self.action_data = { }
 
     def resolve(self, component=None, donor=None, staff_member=None):
-        # self.ensure_complete(component, donor)
         return (
             self.component if component is None else component,
             self.donor if donor is None else donor,
