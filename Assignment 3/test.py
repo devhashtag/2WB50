@@ -413,6 +413,8 @@ def display_all_results(events, individual):
         so = {}
         so_per_minute = {}
         st = {}
+        st_mean_wb = []
+        st_mean_pl = []
 
         for day in events:
             sd[day] = section_donors(events[day])
@@ -421,26 +423,26 @@ def display_all_results(events, individual):
             so[day] = staff_occupation(events[day])
             st[day] = sojourn_times(events[day])
 
-        # for day in events:
-        #     sd_per_minute[day] = fill_minutes(sd[day])
-        #     ql_per_minute[day] = fill_minutes(ql[day])
-        #     bo_per_minute[day] = fill_minutes(bo[day])
-        #     so_per_minute[day] = fill_minutes(so[day])
-
-        # data = combine_days(sd_per_minute)
-        # display_average_number_donors(data)
-        # data = combine_days(ql_per_minute)
-        # display_ql_results(data)
-        # data = combine_days(bo_per_minute)
-        # display_bed_occupation(data)
-        # data = combine_days(so_per_minute)
-        # display_staff_occupation(data)
-
-        st_mean_wb = []
-        st_mean_pl = []
         for day in events:
+            sd_per_minute[day] = fill_minutes(sd[day])
+            ql_per_minute[day] = fill_minutes(ql[day])
+            bo_per_minute[day] = fill_minutes(bo[day])
+            so_per_minute[day] = fill_minutes(so[day])
             st_mean_wb.append(np.mean(st[day][0]))
             st_mean_pl.append(np.mean(st[day][1]))
+
+        data = combine_days(sd_per_minute)
+        display_average_number_donors(data)
+
+        data = combine_days(ql_per_minute)
+        display_ql_results(data)
+
+        data = combine_days(bo_per_minute)
+        display_bed_occupation(data)
+
+        data = combine_days(so_per_minute)
+        display_staff_occupation(data)
+
         st_confidence_interval_wb = stats.t.interval(0.95, len(st_mean_wb)-1, loc=np.mean(st_mean_wb), scale=stats.sem(st_mean_wb))
         st_confidence_interval_pl = stats.t.interval(0.95, len(st_mean_pl)-1, loc=np.mean(st_mean_pl), scale=stats.sem(st_mean_pl))
         print(f'Whole blood: \nMean:{np.mean(st_mean_wb)} \nCI:{st_confidence_interval_wb}')
