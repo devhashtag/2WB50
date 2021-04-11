@@ -6,6 +6,7 @@ from system_definition import *
 from event_handlers import *
 from util import *
 import matplotlib.pyplot as plt
+from scipy import stats
 
 np.random.seed(2)
 
@@ -435,13 +436,15 @@ def display_all_results(events, individual):
         # data = combine_days(so_per_minute)
         # display_staff_occupation(data)
 
+        st_mean_wb = []
+        st_mean_pl = []
         for day in events:
-            st_mean_wb[day] = np.mean(st[day]['Whole blood'])
-            st_mean_pl[day] = np.mean(st[day]['Plasma'])
-        st_confidence_interval_wb = st.t.interval(0.95, len(st_mean_wb)-1, loc=np.mean(st_mean_wb), scale=st.sem(st_mean_wb))
-        st_confidence_interval_pl = st.t.interval(0.95, len(st_mean_pl)-1, loc=np.mean(st_mean_pl), scale=st.sem(st_mean_pl))
-        print(f'Whole blood CI: {st_confidence_interval_wb}')
-        print(f'Plasma CI: {st_confidence_interval_pl}')
+            st_mean_wb.append(np.mean(st[day][0]))
+            st_mean_pl.append(np.mean(st[day][1]))
+        st_confidence_interval_wb = stats.t.interval(0.95, len(st_mean_wb)-1, loc=np.mean(st_mean_wb), scale=stats.sem(st_mean_wb))
+        st_confidence_interval_pl = stats.t.interval(0.95, len(st_mean_pl)-1, loc=np.mean(st_mean_pl), scale=stats.sem(st_mean_pl))
+        print(f'Whole blood: \nMean:{np.mean(st_mean_wb)} \nCI:{st_confidence_interval_wb}')
+        print(f'Plasma: \nMean:{np.mean(st_mean_pl)} \nCI:{st_confidence_interval_pl}')
 
 def combine_days(days_data):
     # minute_data = {}
@@ -476,7 +479,7 @@ def run_simulation(days):
 
     return events_by_day
 
-events_by_day = run_simulation(10)
+events_by_day = run_simulation(50)
 display_all_results(events_by_day, False)
 
 # [[print(action) for action in event.executed_actions] for event in events]

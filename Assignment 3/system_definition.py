@@ -15,11 +15,12 @@ connect_q      = system.createQ('Connect')
 disconnect_q   = system.createQ('Disconnect')
 receptionists = [
     system.createStaff('Receptionist', 'Receptionist 1'),
-    system.createStaff('Receptionist', 'Receptionist 2')]
+    # system.createStaff('Receptionist', 'Receptionist 2')
+]
 doctors = [
     system.createStaff('Doctor', 'Doctor 1'),
     system.createStaff('Doctor', 'Doctor 2'),
-    system.createStaff('Doctor', 'Doctor 3'),
+    # system.createStaff('Doctor', 'Doctor 3'),
 ]
 nurses = [
     system.createStaff('Nurse', 'Nurse 1'),
