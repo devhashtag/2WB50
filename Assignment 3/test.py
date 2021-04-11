@@ -8,7 +8,7 @@ from util import *
 import matplotlib.pyplot as plt
 from scipy import stats
 
-np.random.seed(2)
+np.random.seed(3)
 
 # Register all event handlers and policies
 def register_handlers():
@@ -35,9 +35,13 @@ def register_handlers():
 def add_arrivals():
     system.re_init()
     # add plasma donor arrivals
-    for t in range(opening_time, closing_time - 60, 6):
+    num = 0
+    for t in range(opening_time, closing_time - 60, 5):
+        num += 1
         if np.random.random() <= 0.85:
             system.add_arrival(t, Donor(t, Donor.PLASMA))
+        if num >= 110:
+            break
     # add whole blood donor arrivals
     arrival_times = dist_arrivals.between(opening_time, closing_time)
     for arrival_time in arrival_times:
@@ -265,7 +269,7 @@ def fill_minutes(data):
     for key in data:
         tuples = data[key]
         filled_day[key] = []
-        for i in range(480, 1260):
+        for i in range(480, 1500):
             curr_minute = []
             for index in range(len(tuples)-1, -1, -1):
                 time = math.floor(tuples[index][0])
@@ -464,7 +468,7 @@ def combine_days(days_data):
             values[day] = [tup[1] for tup in tuples]
         minutes = [[values[day][n] for day in range(n_days)] for n in range(len(values[0]))]
         key_data[key] = [np.mean(minute) for minute in minutes]
-        key_data[key] = list(zip(range(480, 1260), key_data[key]))
+        key_data[key] = list(zip(range(480, 1500), key_data[key]))
 
     return key_data
     
@@ -481,7 +485,7 @@ def run_simulation(days):
 
     return events_by_day
 
-events_by_day = run_simulation(50)
+events_by_day = run_simulation(10)
 display_all_results(events_by_day, False)
 
 # [[print(action) for action in event.executed_actions] for event in events]

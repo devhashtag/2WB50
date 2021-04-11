@@ -20,13 +20,13 @@ receptionists = [
 doctors = [
     system.createStaff('Doctor', 'Doctor 1'),
     system.createStaff('Doctor', 'Doctor 2'),
-    # system.createStaff('Doctor', 'Doctor 3'),
+    system.createStaff('Doctor', 'Doctor 3'),
 ]
 nurses = [
     system.createStaff('Nurse', 'Nurse 1'),
-    system.createStaff('Nurse', 'Nurse 2'),
-    system.createStaff('Nurse', 'Nurse 3'),
-    system.createStaff('Nurse', 'Nurse 4')
+    # system.createStaff('Nurse', 'Nurse 2'),
+    # system.createStaff('Nurse', 'Nurse 3'),
+    # system.createStaff('Nurse', 'Nurse 4')
 ]
 
 # Returns the arrival rate per minute of whole blood donors
@@ -54,5 +54,5 @@ dist_arrivals = NHPP(arrival_rate_at, 13/30)
 opening_time = 8 * 60
 closing_time = 20 * 60
 
-available_beds_plasma = 7
-available_beds_blood = 7
+available_beds_plasma = 9
+available_beds_blood = 5
